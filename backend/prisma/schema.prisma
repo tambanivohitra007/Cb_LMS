@@ -1,0 +1,71 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  name        String?
+  password    String
+  role        String    @default("STUDENT") // STUDENT, TEACHER
+  photo       String?
+  classes     Class[]   @relation("ClassStudents")
+  taughtClasses Class[]   @relation("TeacherClasses")
+  submissions Submission[]
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+}
+
+model Class {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  teacherId   Int
+  teacher     User      @relation("TeacherClasses", fields: [teacherId], references: [id])
+  students    User[]    @relation("ClassStudents")
+  assignments Assignment[]
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+}
+
+model Assignment {
+  id           Int          @id @default(autoincrement())
+  title        String
+  description  String?
+  classId      Int
+  class        Class        @relation(fields: [classId], references: [id])
+  competencies Competency[]
+  submissions  Submission[]
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+  deleted_at   DateTime?
+}
+
+model Competency {
+  id           Int        @id @default(autoincrement())
+  name         String
+  description  String?
+  assignmentId Int
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  created_at   DateTime   @default(now())
+}
+
+model Submission {
+  id           Int      @id @default(autoincrement())
+  content      String?  // Could be a link to a file, or text content
+  status       String   @default("IN_PROGRESS") // IN_PROGRESS, ACHIEVED, MASTERED
+  studentId    Int
+  student      User     @relation(fields: [studentId], references: [id])
+  assignmentId Int
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  submitted_at DateTime @default(now())
+  reviewed_at  DateTime?
+}
+
