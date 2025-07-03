@@ -20,7 +20,11 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 // Security middleware
 app.use(helmet());
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://localhost:5174'
+    ],
     credentials: true
 }));
 

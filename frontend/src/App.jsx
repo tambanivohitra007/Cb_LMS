@@ -133,7 +133,14 @@ function Navbar() {
                     </div>
                     <div className="flex items-center">
                          <Link to="/profile" className="flex items-center mr-4">
-                             <img src={user.photo || '[https://i.pravatar.cc/150](https://i.pravatar.cc/150)'} alt="profile" className="w-8 h-8 rounded-full mr-2"/>
+                             <img 
+                                src={user.photo || 'https://i.pravatar.cc/150'} 
+                                alt="profile" 
+                                className="w-8 h-8 rounded-full mr-2"
+                                onError={(e) => {
+                                    e.target.src = 'https://i.pravatar.cc/150';
+                                }}
+                             />
                              <span className="text-sm font-medium text-gray-700">{user.name}</span>
                          </Link>
                         <button onClick={logout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium">
