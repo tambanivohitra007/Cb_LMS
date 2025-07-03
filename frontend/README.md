@@ -68,10 +68,11 @@ src/
 ├── main.jsx               # Application entry point
 ├── index.css              # Global styles
 └── pages/
-    ├── LoginPage.jsx      # User authentication
+    ├── LoginPage.jsx          # User authentication
     ├── StudentDashboard.jsx   # Student dashboard with assignments
     ├── TeacherDashboard.jsx   # Teacher dashboard with statistics
     ├── ClassManagement.jsx    # Class CRUD operations (Teacher)
+    ├── AssignmentManagement.jsx # Assignment CRUD operations (Teacher)
     ├── Trash.jsx             # Soft delete management (Teacher)
     └── Profile.jsx           # User profile management
 ```
@@ -86,8 +87,11 @@ src/
 
 ### Teacher Features:
 - **Dashboard**: Overview statistics (students, classes, competencies)
-- **Class Management**: Create, view, and delete classes
+- **Class Management**: Create, view, edit, and delete classes
+- **Assignment Management**: Create, view, edit, and delete assignments for each class
 - **Assignment Overview**: View all assignments and submission counts
+- **Competency Tracking**: Define competencies for each assignment
+- **Trash Management**: Restore or permanently delete classes
 - **Trash Management**: Restore or permanently delete classes
 
 ## Demo Accounts
@@ -127,6 +131,10 @@ After the backend is seeded, you can use these accounts:
 - `POST /api/classes` - Create new class (teacher only)
 - `PUT /api/classes/:id` - Update class (teacher only)
 - `DELETE /api/classes/:id` - Delete class (teacher only)
+- `GET /api/classes/:classId/assignments` - Get assignments for a class (teacher only)
+- `POST /api/assignments` - Create assignment (teacher only)
+- `PUT /api/assignments/:id` - Update assignment (teacher only)
+- `DELETE /api/assignments/:id` - Delete assignment (teacher only)
 - `POST /api/submissions` - Submit assignment work (student only)
 - `GET /api/trash` - Fetch deleted items (teacher only)
 - `POST /api/trash/restore/class/:id` - Restore deleted class (teacher only)

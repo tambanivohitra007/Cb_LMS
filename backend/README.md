@@ -72,7 +72,10 @@ A Node.js/Express backend for a Competency-Based Learning Management System.
 - `DELETE /api/classes/:id` - Soft delete class (Teacher only)
 
 ### Assignments
+- `GET /api/classes/:classId/assignments` - Get assignments for a specific class
 - `POST /api/assignments` - Create assignment (Teacher only)
+- `PUT /api/assignments/:id` - Update assignment (Teacher only)
+- `DELETE /api/assignments/:id` - Delete assignment (Teacher only)
 
 ### Submissions
 - `POST /api/submissions` - Create/update submission (Student only)

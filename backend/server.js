@@ -65,6 +65,13 @@ const assignmentSchema = Joi.object({
     competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required()
 });
 
+const assignmentUpdateSchema = Joi.object({
+    title: Joi.string().min(1).max(200).required(),
+    description: Joi.string().max(1000).optional(),
+    classId: Joi.number().integer().positive().optional(), // Optional for updates (ignored)
+    competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required()
+});
+
 const submissionSchema = Joi.object({
     assignmentId: Joi.number().integer().positive().required(),
     content: Joi.string().max(5000).optional()
@@ -489,6 +496,174 @@ app.post('/api/assignments', authMiddleware, roleMiddleware(['TEACHER']), valida
         });
         
         res.status(201).json({ success: true, data: newAssignment });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get assignments for a specific class
+app.get('/api/classes/:classId/assignments', authMiddleware, async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const classIdInt = parseInt(classId);
+        
+        if (isNaN(classIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID'
+            });
+        }
+        
+        // Verify the user has access to this class
+        let classQuery;
+        if (req.user.role === 'TEACHER') {
+            classQuery = {
+                id: classIdInt,
+                teacherId: req.user.userId,
+                deleted_at: null
+            };
+        } else {
+            classQuery = {
+                id: classIdInt,
+                students: { some: { id: req.user.userId } },
+                deleted_at: null
+            };
+        }
+        
+        const classWithAssignments = await prisma.class.findFirst({
+            where: classQuery,
+            include: {
+                assignments: {
+                    where: { deleted_at: null },
+                    include: {
+                        competencies: true,
+                        _count: {
+                            select: { submissions: true }
+                        }
+                    },
+                    orderBy: { created_at: 'desc' }
+                }
+            }
+        });
+        
+        if (!classWithAssignments) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have access to it'
+            });
+        }
+        
+        res.json({ success: true, data: classWithAssignments.assignments });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Update an assignment
+app.put('/api/assignments/:id', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(assignmentUpdateSchema), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { title, description, competencyNames } = req.body;
+        const assignmentId = parseInt(id);
+        
+        if (isNaN(assignmentId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid assignment ID'
+            });
+        }
+        
+        // Verify the assignment exists and belongs to a class owned by the teacher
+        const existingAssignment = await prisma.assignment.findFirst({
+            where: { 
+                id: assignmentId,
+                deleted_at: null,
+                class: {
+                    teacherId: req.user.userId,
+                    deleted_at: null
+                }
+            },
+            include: {
+                competencies: true
+            }
+        });
+        
+        if (!existingAssignment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Assignment not found or you do not have permission to update it'
+            });
+        }
+        
+        // Delete existing competencies and create new ones
+        await prisma.competency.deleteMany({
+            where: { assignmentId: assignmentId }
+        });
+        
+        const updatedAssignment = await prisma.assignment.update({
+            where: { id: assignmentId },
+            data: {
+                title,
+                description,
+                competencies: {
+                    create: competencyNames.map(name => ({ name }))
+                }
+            },
+            include: {
+                competencies: true,
+                class: {
+                    select: { id: true, name: true }
+                },
+                _count: {
+                    select: { submissions: true }
+                }
+            }
+        });
+        
+        res.json({ success: true, data: updatedAssignment });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Soft delete an assignment
+app.delete('/api/assignments/:id', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const assignmentId = parseInt(id);
+        
+        if (isNaN(assignmentId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid assignment ID'
+            });
+        }
+        
+        // Verify the assignment exists and belongs to a class owned by the teacher
+        const existingAssignment = await prisma.assignment.findFirst({
+            where: { 
+                id: assignmentId,
+                deleted_at: null,
+                class: {
+                    teacherId: req.user.userId,
+                    deleted_at: null
+                }
+            }
+        });
+        
+        if (!existingAssignment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Assignment not found or you do not have permission to delete it'
+            });
+        }
+        
+        await prisma.assignment.update({
+            where: { id: assignmentId },
+            data: { deleted_at: new Date() }
+        });
+        
+        res.json({ success: true, message: 'Assignment deleted successfully' });
     } catch (error) {
         next(error);
     }

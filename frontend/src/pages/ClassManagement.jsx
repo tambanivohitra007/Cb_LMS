@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
+import { useNavigate } from 'react-router-dom';
 
 function ClassManagement() {
     const { apiClient } = useAuth();
+    const navigate = useNavigate();
     const [classes, setClasses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -252,6 +254,12 @@ function ClassManagement() {
                                                 </p>
                                             </div>
                                             <div className="flex space-x-2">
+                                                <button 
+                                                    onClick={() => navigate(`/classes/${cls.id}/assignments`)}
+                                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm"
+                                                >
+                                                    Assignments
+                                                </button>
                                                 <button 
                                                     onClick={() => handleEdit(cls)}
                                                     className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
