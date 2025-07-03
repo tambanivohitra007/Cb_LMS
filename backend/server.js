@@ -884,6 +884,241 @@ app.delete('/api/cohorts/:id', authMiddleware, roleMiddleware(['TEACHER']), asyn
     }
 });
 
+// Add class to cohort
+app.post('/api/cohorts/:id/classes', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { classId } = req.body;
+        const cohortId = parseInt(id);
+
+        if (isNaN(cohortId) || !classId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid cohort ID or class ID'
+            });
+        }
+
+        // Verify cohort belongs to teacher
+        const cohort = await prisma.cohort.findFirst({
+            where: {
+                id: cohortId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            }
+        });
+
+        if (!cohort) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cohort not found or you do not have permission'
+            });
+        }
+
+        // Verify class belongs to teacher
+        const classToAdd = await prisma.class.findFirst({
+            where: {
+                id: classId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            }
+        });
+
+        if (!classToAdd) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission'
+            });
+        }
+
+        // Add class to cohort
+        await prisma.class.update({
+            where: { id: classId },
+            data: { cohortId: cohortId }
+        });
+
+        res.json({ success: true, message: 'Class added to cohort successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Remove class from cohort
+app.delete('/api/cohorts/:id/classes/:classId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id, classId } = req.params;
+        const cohortId = parseInt(id);
+        const classIdInt = parseInt(classId);
+
+        if (isNaN(cohortId) || isNaN(classIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid cohort ID or class ID'
+            });
+        }
+
+        // Verify cohort belongs to teacher
+        const cohort = await prisma.cohort.findFirst({
+            where: {
+                id: cohortId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            }
+        });
+
+        if (!cohort) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cohort not found or you do not have permission'
+            });
+        }
+
+        // Verify class belongs to teacher and is in this cohort
+        const classToRemove = await prisma.class.findFirst({
+            where: {
+                id: classIdInt,
+                teacherId: req.user.userId,
+                cohortId: cohortId,
+                deleted_at: null
+            }
+        });
+
+        if (!classToRemove) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found in this cohort or you do not have permission'
+            });
+        }
+
+        // Remove class from cohort
+        await prisma.class.update({
+            where: { id: classIdInt },
+            data: { cohortId: null }
+        });
+
+        res.json({ success: true, message: 'Class removed from cohort successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get available classes that can be added to cohort
+app.get('/api/cohorts/:id/available-classes', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const cohortId = parseInt(id);
+
+        if (isNaN(cohortId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid cohort ID'
+            });
+        }
+
+        // Verify cohort belongs to teacher
+        const cohort = await prisma.cohort.findFirst({
+            where: {
+                id: cohortId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            }
+        });
+
+        if (!cohort) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cohort not found or you do not have permission'
+            });
+        }
+
+        // Get classes that don't belong to any cohort or belong to a different cohort
+        const availableClasses = await prisma.class.findMany({
+            where: {
+                teacherId: req.user.userId,
+                deleted_at: null,
+                OR: [
+                    { cohortId: null },
+                    { cohortId: { not: cohortId } }
+                ]
+            },
+            include: {
+                cohort: {
+                    select: { id: true, name: true }
+                },
+                _count: {
+                    select: { students: true, assignments: true }
+                }
+            },
+            orderBy: { name: 'asc' }
+        });
+
+        res.json({ success: true, data: availableClasses });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get all students for potential cohort assignment
+app.get('/api/cohorts/:id/students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const cohortId = parseInt(id);
+
+        if (isNaN(cohortId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid cohort ID'
+            });
+        }
+
+        // Verify cohort belongs to teacher
+        const cohort = await prisma.cohort.findFirst({
+            where: {
+                id: cohortId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            },
+            include: {
+                classes: {
+                    where: { deleted_at: null },
+                    include: {
+                        students: {
+                            select: { id: true, name: true, email: true }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!cohort) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cohort not found or you do not have permission'
+            });
+        }
+
+        // Get all unique students from classes in this cohort
+        const studentsSet = new Set();
+        const students = [];
+
+        cohort.classes.forEach(cls => {
+            cls.students.forEach(student => {
+                if (!studentsSet.has(student.id)) {
+                    studentsSet.add(student.id);
+                    students.push({
+                        ...student,
+                        className: cls.name,
+                        classId: cls.id
+                    });
+                }
+            });
+        });
+
+        res.json({ success: true, data: students });
+    } catch (error) {
+        next(error);
+    }
+});
+
 
 // --- ASSIGNMENT ROUTES ---
 app.post('/api/assignments', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(assignmentSchema), async (req, res, next) => {
