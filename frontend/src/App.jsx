@@ -1,6 +1,19 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { 
+    LayoutDashboard, 
+    BookOpen, 
+    Users, 
+    BarChart3, 
+    FileText, 
+    Trash2, 
+    TrendingUp, 
+    GraduationCap,
+    UserCog,
+    ChevronLeft,
+    LogOut
+} from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
@@ -87,103 +100,177 @@ function App() {
     return (
         <AuthContext.Provider value={{ user, login, logout, apiClient }}>
             <Router>
-                <div className="min-h-screen flex flex-col">
-                    {user && <Navbar />}
-                    <main className="flex-grow">
-                        <Routes>
-                            <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
-                            <Route path="/" element={
-                                <ProtectedRoute>
-                                    {user?.role === 'TEACHER' ? <TeacherDashboard /> : 
-                                     user?.role === 'ADMIN' ? <UserManagement /> : 
-                                     <StudentDashboard />}
-                                </ProtectedRoute>
-                            } />
-                             <Route path="/classes" element={<ProtectedRoute role="TEACHER"><ClassManagement /></ProtectedRoute>} />
-                             <Route path="/classes/:classId/assignments" element={<ProtectedRoute role="TEACHER"><AssignmentManagement /></ProtectedRoute>} />
-                             <Route path="/classes/:classId/students" element={<ProtectedRoute role="TEACHER"><StudentManagement /></ProtectedRoute>} />
-                             <Route path="/cohorts" element={<ProtectedRoute role="TEACHER"><CohortManagement /></ProtectedRoute>} />
-                             <Route path="/reports" element={<ProtectedRoute role="TEACHER"><Reports /></ProtectedRoute>} />
-                             <Route path="/mastery-transcript" element={<ProtectedRoute><MasteryTranscript /></ProtectedRoute>} />
-                             <Route path="/mastery-transcript/:studentId" element={<ProtectedRoute role="TEACHER"><MasteryTranscript /></ProtectedRoute>} />
-                             <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
-                             <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
-                             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                             <Route path="/progress" element={<ProtectedRoute role="STUDENT"><StudentProgressPage /></ProtectedRoute>} />
-                             <Route path="/progress/:classId" element={<ProtectedRoute role="STUDENT"><StudentProgressPage /></ProtectedRoute>} />
-                             <Route path="/student/classes/:classId" element={<StudentClassPage />} />
-                             <Route path="/teacher/assignments/:assignmentId/submissions" element={<AssignmentSubmissionsReview />} />
-                            <Route path="*" element={<Navigate to="/" />} />
-                        </Routes>
-                    </main>
+                <div className="min-h-screen flex">
+                    {user && <Sidebar />}
+                    <div className="flex-1 flex flex-col">
+                        <main className="flex-grow bg-gray-50">
+                            <Routes>
+                                <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
+                                <Route path="/" element={
+                                    <ProtectedRoute>
+                                        {user?.role === 'TEACHER' ? <TeacherDashboard /> : 
+                                         user?.role === 'ADMIN' ? <UserManagement /> : 
+                                         <StudentDashboard />}
+                                    </ProtectedRoute>
+                                } />
+                                 <Route path="/classes" element={<ProtectedRoute role="TEACHER"><ClassManagement /></ProtectedRoute>} />
+                                 <Route path="/classes/:classId/assignments" element={<ProtectedRoute role="TEACHER"><AssignmentManagement /></ProtectedRoute>} />
+                                 <Route path="/classes/:classId/students" element={<ProtectedRoute role="TEACHER"><StudentManagement /></ProtectedRoute>} />
+                                 <Route path="/cohorts" element={<ProtectedRoute role="TEACHER"><CohortManagement /></ProtectedRoute>} />
+                                 <Route path="/reports" element={<ProtectedRoute role="TEACHER"><Reports /></ProtectedRoute>} />
+                                 <Route path="/mastery-transcript" element={<ProtectedRoute><MasteryTranscript /></ProtectedRoute>} />
+                                 <Route path="/mastery-transcript/:studentId" element={<ProtectedRoute role="TEACHER"><MasteryTranscript /></ProtectedRoute>} />
+                                 <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
+                                 <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
+                                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                                 <Route path="/progress" element={<ProtectedRoute role="STUDENT"><StudentProgressPage /></ProtectedRoute>} />
+                                 <Route path="/progress/:classId" element={<ProtectedRoute role="STUDENT"><StudentProgressPage /></ProtectedRoute>} />
+                                 <Route path="/student/classes/:classId" element={<StudentClassPage />} />
+                                 <Route path="/teacher/assignments/:assignmentId/submissions" element={<AssignmentSubmissionsReview />} />
+                                <Route path="*" element={<Navigate to="/" />} />
+                            </Routes>
+                        </main>
+                    </div>
                 </div>
             </Router>
         </AuthContext.Provider>
     );
 }
 
-function Navbar() {
+function Sidebar() {
     const { user, logout } = useAuth();
     const location = useLocation();
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     const navLinks = {
         TEACHER: [
-            { path: '/', name: 'Dashboard' },
-            { path: '/classes', name: 'Classes' },
-            { path: '/cohorts', name: 'Cohorts' },
-            { path: '/reports', name: 'Reports' },
-            { path: '/mastery-transcript', name: 'Transcripts' },
-            { path: '/trash', name: 'Trash' },
+            { path: '/', name: 'Dashboard', icon: LayoutDashboard },
+            { path: '/classes', name: 'Classes', icon: BookOpen },
+            { path: '/cohorts', name: 'Cohorts', icon: Users },
+            { path: '/reports', name: 'Reports', icon: BarChart3 },
+            { path: '/mastery-transcript', name: 'Transcripts', icon: FileText },
+            { path: '/trash', name: 'Trash', icon: Trash2 },
         ],
         STUDENT: [
-            { path: '/', name: 'Dashboard' },
-            { path: '/progress', name: 'My Progress' },
-            { path: '/mastery-transcript', name: 'My Transcript' },
+            { path: '/', name: 'Dashboard', icon: LayoutDashboard },
+            { path: '/progress', name: 'My Progress', icon: TrendingUp },
+            { path: '/mastery-transcript', name: 'My Transcript', icon: GraduationCap },
         ],
         ADMIN: [
-            { path: '/', name: 'User Management' },
-            { path: '/users', name: 'Users' },
+            { path: '/', name: 'User Management', icon: UserCog },
+            { path: '/users', name: 'Users', icon: Users },
         ],
     };
 
+    const roleColors = {
+        TEACHER: 'from-indigo-600 to-purple-600',
+        STUDENT: 'from-green-600 to-teal-600',
+        ADMIN: 'from-red-600 to-pink-600'
+    };
+
     return (
-        <nav className="bg-white shadow-md">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
+        <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg transition-all duration-300 ease-in-out flex flex-col`}>
+            {/* Header with Logo and Toggle */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                {!isCollapsed && (
                     <div className="flex items-center">
-                        <span className="font-bold text-xl text-indigo-600">CBLMS</span>
-                        <div className="hidden md:block">
-                            <div className="ml-10 flex items-baseline space-x-4">
-                                {navLinks[user.role].map(link => (
-                                    <Link key={link.path} to={link.path}
-                                        className={`${location.pathname === link.path ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'} px-3 py-2 rounded-md text-sm font-medium`}
-                                    >{link.name}</Link>
-                                ))}
-                            </div>
+                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${roleColors[user.role]} flex items-center justify-center mr-3`}>
+                            <span className="text-white font-bold text-sm">CB</span>
                         </div>
+                        <span className="font-bold text-xl text-gray-800">CBLMS</span>
                     </div>
-                    <div className="flex items-center">
-                         <Link to="/profile" className="flex items-center mr-4">
-                             <img 
-                                src={user.photo || 'https://i.pravatar.cc/150'} 
-                                alt="profile" 
-                                className="w-8 h-8 rounded-full mr-2"
-                                onError={(e) => {
-                                    e.target.src = 'https://i.pravatar.cc/150';
-                                }}
-                             />
-                             <span className="text-sm font-medium text-gray-700">{user.name}</span>
-                         </Link>
-                        <button onClick={logout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium">
-                            Logout
-                        </button>
-                    </div>
-                </div>
+                )}
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                    <ChevronLeft 
+                        className={`w-5 h-5 text-gray-600 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
+                    />
+                </button>
             </div>
-        </nav>
+
+            {/* User Profile Section */}
+            <div className="p-4 border-b border-gray-200">
+                <Link to="/profile" className={`flex items-center hover:bg-gray-50 rounded-lg p-2 transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
+                    <img 
+                        src={user.photo || 'https://i.pravatar.cc/150'} 
+                        alt="profile" 
+                        className={`${isCollapsed ? 'w-8 h-8' : 'w-10 h-10'} rounded-full border-2 border-gray-200`}
+                        onError={(e) => {
+                            e.target.src = 'https://i.pravatar.cc/150';
+                        }}
+                    />
+                    {!isCollapsed && (
+                        <div className="ml-3 flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                            <p className="text-xs text-gray-500 capitalize">{user.role.toLowerCase()}</p>
+                        </div>
+                    )}
+                </Link>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="flex-1 p-4 space-y-2">
+                {navLinks[user.role].map(link => {
+                    const isActive = location.pathname === link.path;
+                    const IconComponent = link.icon;
+                    return (
+                        <Link 
+                            key={link.path} 
+                            to={link.path}
+                            className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
+                                isActive 
+                                    ? `bg-gradient-to-r ${roleColors[user.role]} text-white shadow-md` 
+                                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                            } ${isCollapsed ? 'justify-center' : ''}`}
+                            title={isCollapsed ? link.name : ''}
+                        >
+                            <IconComponent className={`w-5 h-5 ${!isCollapsed ? 'mr-3' : ''}`} />
+                            {!isCollapsed && (
+                                <span className="font-medium">{link.name}</span>
+                            )}
+                            {!isCollapsed && isActive && (
+                                <div className="ml-auto w-2 h-2 bg-white rounded-full"></div>
+                            )}
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            {/* Logout Button */}
+            <div className="p-4 border-t border-gray-200">
+                <button 
+                    onClick={logout} 
+                    className={`flex items-center w-full px-3 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors ${
+                        isCollapsed ? 'justify-center' : ''
+                    }`}
+                    title={isCollapsed ? 'Logout' : ''}
+                >
+                    <LogOut className={`w-5 h-5 ${!isCollapsed ? 'mr-3' : ''}`} />
+                    {!isCollapsed && <span className="font-medium">Logout</span>}
+                </button>
+            </div>
+        </div>
     );
 }
 
+// Header component for pages
+function PageHeader({ title, subtitle, actions }) {
+    return (
+        <div className="bg-white border-b border-gray-200">
+            <div className="px-6 py-4">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+                        {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}
+                    </div>
+                    {actions && <div className="flex space-x-3">{actions}</div>}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 const ProtectedRoute = ({ children, role }) => {
     const { user } = useAuth();
@@ -197,4 +284,5 @@ const ProtectedRoute = ({ children, role }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+export { PageHeader };
 export default App;

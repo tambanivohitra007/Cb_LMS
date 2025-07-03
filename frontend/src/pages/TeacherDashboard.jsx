@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { Link } from 'react-router-dom';
+import { Users, Building, Award, BookOpen, Users2, BarChart3, FileText } from 'lucide-react';
 
 function TeacherDashboard() {
     const { user, apiClient } = useAuth();
@@ -68,8 +69,7 @@ function TeacherDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
                     <div className="bg-indigo-500 text-white p-4 rounded-full">
-                         {/* Placeholder Icon */}
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <Users className="h-8 w-8" />
                     </div>
                     <div className="ml-4">
                         <p className="text-gray-500">Total Students</p>
@@ -78,7 +78,7 @@ function TeacherDashboard() {
                 </div>
                  <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
                     <div className="bg-green-500 text-white p-4 rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>
+                        <Building className="h-8 w-8" />
                     </div>
                     <div className="ml-4">
                         <p className="text-gray-500">Active Classes</p>
@@ -87,7 +87,7 @@ function TeacherDashboard() {
                 </div>
                  <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
                     <div className="bg-yellow-500 text-white p-4 rounded-full">
-                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.417V21h18v-.583a12.02 12.02 0 00-4.382-8.433z" /></svg>
+                        <Award className="h-8 w-8" />
                     </div>
                     <div className="ml-4">
                         <p className="text-gray-500">Total Competencies</p>
@@ -101,26 +101,30 @@ function TeacherDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                      <Link 
                         to="/classes" 
-                        className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                        className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors flex items-center justify-center gap-2"
                      >
+                        <BookOpen className="h-5 w-5" />
                         Manage Classes
                      </Link>
                      <Link 
                         to="/cohorts" 
-                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors flex items-center justify-center gap-2"
                      >
+                        <Users2 className="h-5 w-5" />
                         Manage Cohorts
                      </Link>
                      <Link 
                         to="/reports" 
-                        className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                        className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors flex items-center justify-center gap-2"
                      >
+                        <BarChart3 className="h-5 w-5" />
                         View Reports
                      </Link>
                      <Link 
                         to="/mastery-transcript" 
-                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors flex items-center justify-center gap-2"
                      >
+                        <FileText className="h-5 w-5" />
                         Mastery Transcripts
                      </Link>
                 </div>
