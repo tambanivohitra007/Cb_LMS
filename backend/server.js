@@ -2547,6 +2547,118 @@ app.get('/api/reports/competency/:competencyId/progress', authMiddleware, roleMi
 });
 
 // 404 handler
+// ===== MASTERY TRANSCRIPT ENDPOINT =====
+
+// Get mastery transcript for a student
+app.get('/api/reports/student/:studentId/mastery-transcript', authMiddleware, roleMiddleware(['TEACHER', 'ADMIN']), async (req, res, next) => {
+    try {
+        const { studentId } = req.params;
+
+        // Get student information
+        const student = await prisma.user.findUnique({
+            where: { 
+                id: parseInt(studentId),
+                role: 'STUDENT'
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true
+            }
+        });
+
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: 'Student not found'
+            });
+        }
+
+        // Get all competency progress for the student
+        const competencyProgress = await prisma.competencyProgress.findMany({
+            where: {
+                studentId: parseInt(studentId)
+            },
+            include: {
+                competency: {
+                    include: {
+                        assignment: {
+                            include: {
+                                class: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                achieved_at: 'desc'
+            }
+        });
+
+        // Group competencies by class and assignment
+        const transcript = {
+            student,
+            classes: {}
+        };
+
+        competencyProgress.forEach(progress => {
+            const className = progress.competency.assignment.class.name;
+            const assignmentTitle = progress.competency.assignment.title;
+            const competencyName = progress.competency.name;
+
+            if (!transcript.classes[className]) {
+                transcript.classes[className] = {
+                    name: className,
+                    assignments: {}
+                };
+            }
+
+            if (!transcript.classes[className].assignments[assignmentTitle]) {
+                transcript.classes[className].assignments[assignmentTitle] = {
+                    title: assignmentTitle,
+                    competencies: []
+                };
+            }
+
+            transcript.classes[className].assignments[assignmentTitle].competencies.push({
+                name: competencyName,
+                status: progress.status,
+                achievedAt: progress.achieved_at,
+                feedback: progress.feedback,
+                masteryLevel: progress.mastery_level || 'Developing'
+            });
+        });
+
+        // Calculate statistics
+        const totalCompetencies = competencyProgress.length;
+        const masteredCount = competencyProgress.filter(p => p.status === 'MASTERED').length;
+        const inProgressCount = competencyProgress.filter(p => p.status === 'IN_PROGRESS').length;
+        const notStartedCount = competencyProgress.filter(p => p.status === 'NOT_STARTED').length;
+
+        const statistics = {
+            total: totalCompetencies,
+            mastered: masteredCount,
+            inProgress: inProgressCount,
+            notStarted: notStartedCount,
+            masteryPercentage: totalCompetencies > 0 ? Math.round((masteredCount / totalCompetencies) * 100) : 0
+        };
+
+        res.json({
+            success: true,
+            data: {
+                ...transcript,
+                statistics,
+                generatedAt: new Date().toISOString()
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- END MASTERY TRANSCRIPT ENDPOINT ---
+
 app.use('*', (req, res) => {
     res.status(404).json({
         success: false,
@@ -3034,264 +3146,6 @@ app.get('/api/reports/class/:classId/progress', authMiddleware, roleMiddleware([
                     return stats;
                 }, { achieved: 0, mastered: 0, inProgress: 0, notStarted: 0, total: 0 })
             }))
-        };
-
-        res.json({ success: true, data: response });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Get mastery transcript for a student
-app.get('/api/reports/student/:studentId/mastery-transcript', authMiddleware, roleMiddleware(['TEACHER', 'STUDENT']), async (req, res, next) => {
-    try {
-        const { studentId } = req.params;
-        const { includeInProgress } = req.query;
-
-        // Verify access: Teachers can view any student they teach, students can only view themselves
-        if (req.user.role === 'STUDENT' && req.user.userId !== parseInt(studentId)) {
-            return res.status(403).json({
-                success: false,
-                message: 'Students can only view their own mastery transcript'
-            });
-        }
-
-        if (req.user.role === 'TEACHER') {
-            // Verify teacher has access to this student
-            const studentAccess = await prisma.user.findFirst({
-                where: {
-                    id: parseInt(studentId),
-                    classes: {
-                        some: {
-                            teacherId: req.user.userId
-                        }
-                    }
-                }
-            });
-
-            if (!studentAccess) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'You do not have access to this student'
-                });
-            }
-        }
-
-        // Get student information
-        const student = await prisma.user.findUnique({
-            where: { id: parseInt(studentId) },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                created_at: true
-            }
-        });
-
-        if (!student) {
-            return res.status(404).json({
-                success: false,
-                message: 'Student not found'
-            });
-        }
-
-        // Build status filter
-        const statusFilter = includeInProgress === 'true' 
-            ? ['ACHIEVED', 'MASTERED', 'IN_PROGRESS']
-            : ['ACHIEVED', 'MASTERED'];
-
-        // Get all achieved/mastered competencies with their evidence
-        const competencyProgress = await prisma.competencyProgress.findMany({
-            where: {
-                studentId: parseInt(studentId),
-                status: { in: statusFilter }
-            },
-            include: {
-                competency: {
-                    include: {
-                        assignment: {
-                            include: {
-                                class: {
-                                    include: {
-                                        cohort: true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                submission: {
-                    select: {
-                        id: true,
-                        content: true,
-                        submitted_at: true,
-                        reviewed_at: true,
-                        feedback: true
-                    }
-                }
-            },
-            orderBy: [
-                { achieved_at: 'desc' },
-                { updated_at: 'desc' }
-            ]
-        });
-
-        // Group competencies by class and cohort
-        const competenciesByClass = {};
-        const competenciesByCohort = {};
-        const masteredCompetencies = [];
-        const achievedCompetencies = [];
-        const inProgressCompetencies = [];
-
-        competencyProgress.forEach(progress => {
-            const competency = {
-                id: progress.competency.id,
-                name: progress.competency.name,
-                description: progress.competency.description,
-                status: progress.status,
-                achievedAt: progress.achieved_at,
-                feedback: progress.feedback,
-                assignment: {
-                    id: progress.competency.assignment.id,
-                    title: progress.competency.assignment.title,
-                    description: progress.competency.assignment.description
-                },
-                class: {
-                    id: progress.competency.assignment.class.id,
-                    name: progress.competency.assignment.class.name,
-                    description: progress.competency.assignment.class.description
-                },
-                cohort: progress.competency.assignment.class.cohort ? {
-                    id: progress.competency.assignment.class.cohort.id,
-                    name: progress.competency.assignment.class.cohort.name,
-                    level: progress.competency.assignment.class.cohort.level
-                } : null,
-                evidence: progress.submission ? {
-                    submissionId: progress.submission.id,
-                    content: progress.submission.content,
-                    submittedAt: progress.submission.submitted_at,
-                    reviewedAt: progress.submission.reviewed_at,
-                    teacherFeedback: progress.submission.feedback
-                } : null
-            };
-
-            // Group by class
-            const className = progress.competency.assignment.class.name;
-            if (!competenciesByClass[className]) {
-                competenciesByClass[className] = {
-                    classInfo: competency.class,
-                    cohort: competency.cohort,
-                    competencies: []
-                };
-            }
-            competenciesByClass[className].competencies.push(competency);
-
-            // Group by cohort if exists
-            if (competency.cohort) {
-                const cohortName = competency.cohort.name;
-                if (!competenciesByCohort[cohortName]) {
-                    competenciesByCohort[cohortName] = {
-                        cohortInfo: competency.cohort,
-                        competencies: []
-                    };
-                }
-                competenciesByCohort[cohortName].competencies.push(competency);
-            }
-
-            // Group by status
-            switch (progress.status) {
-                case 'MASTERED':
-                    masteredCompetencies.push(competency);
-                    break;
-                case 'ACHIEVED':
-                    achievedCompetencies.push(competency);
-                    break;
-                case 'IN_PROGRESS':
-                    inProgressCompetencies.push(competency);
-                    break;
-            }
-        });
-
-        // Calculate summary statistics
-        const totalCompetencies = competencyProgress.length;
-        const masteredCount = masteredCompetencies.length;
-        const achievedCount = achievedCompetencies.length;
-        const inProgressCount = inProgressCompetencies.length;
-
-        // Get earliest and latest achievement dates
-        const achievementDates = competencyProgress
-            .filter(p => p.achieved_at)
-            .map(p => p.achieved_at)
-            .sort((a, b) => a - b);
-
-        const response = {
-            student: {
-                ...student,
-                transcriptGeneratedAt: new Date()
-            },
-            summary: {
-                totalCompetencies,
-                mastered: masteredCount,
-                achieved: achievedCount,
-                inProgress: inProgressCount,
-                completionRate: totalCompetencies > 0 ? 
-                    Math.round(((masteredCount + achievedCount) / totalCompetencies) * 100) : 0,
-                masteryRate: totalCompetencies > 0 ? 
-                    Math.round((masteredCount / totalCompetencies) * 100) : 0,
-                firstAchievement: achievementDates.length > 0 ? achievementDates[0] : null,
-                latestAchievement: achievementDates.length > 0 ? achievementDates[achievementDates.length - 1] : null
-            },
-            competenciesByClass: Object.entries(competenciesByClass).map(([className, data]) => ({
-                className,
-                classInfo: data.classInfo,
-                cohort: data.cohort,
-                competencies: data.competencies.sort((a, b) => {
-                    // Sort by status priority (mastered first), then by achievement date
-                    const statusPriority = { 'MASTERED': 3, 'ACHIEVED': 2, 'IN_PROGRESS': 1 };
-                    if (statusPriority[a.status] !== statusPriority[b.status]) {
-                        return statusPriority[b.status] - statusPriority[a.status];
-                    }
-                    return new Date(b.achievedAt || b.updatedAt) - new Date(a.achievedAt || a.updatedAt);
-                }),
-                summary: {
-                    total: data.competencies.length,
-                    mastered: data.competencies.filter(c => c.status === 'MASTERED').length,
-                    achieved: data.competencies.filter(c => c.status === 'ACHIEVED').length,
-                    inProgress: data.competencies.filter(c => c.status === 'IN_PROGRESS').length
-                }
-            })),
-            competenciesByCohort: Object.entries(competenciesByCohort).map(([cohortName, data]) => ({
-                cohortName,
-                cohortInfo: data.cohortInfo,
-                competencies: data.competencies.sort((a, b) => {
-                    const statusPriority = { 'MASTERED': 3, 'ACHIEVED': 2, 'IN_PROGRESS': 1 };
-                    if (statusPriority[a.status] !== statusPriority[b.status]) {
-                        return statusPriority[b.status] - statusPriority[a.status];
-                    }
-                    return new Date(b.achievedAt || b.updatedAt) - new Date(a.achievedAt || a.updatedAt);
-                }),
-                summary: {
-                    total: data.competencies.length,
-                    mastered: data.competencies.filter(c => c.status === 'MASTERED').length,
-                    achieved: data.competencies.filter(c => c.status === 'ACHIEVED').length,
-                    inProgress: data.competencies.filter(c => c.status === 'IN_PROGRESS').length
-                }
-            })),
-            masteredCompetencies: masteredCompetencies.sort((a, b) => new Date(b.achievedAt) - new Date(a.achievedAt)),
-            achievedCompetencies: achievedCompetencies.sort((a, b) => new Date(b.achievedAt) - new Date(a.achievedAt)),
-            inProgressCompetencies: inProgressCompetencies.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
-            evidenceLinks: competencyProgress
-                .filter(p => p.submission && p.submission.content)
-                .map(p => ({
-                    competencyName: p.competency.name,
-                    assignmentTitle: p.competency.assignment.title,
-                    className: p.competency.assignment.class.name,
-                    evidenceType: 'submission',
-                    evidenceId: p.submission.id,
-                    evidenceContent: p.submission.content,
-                    submittedAt: p.submission.submitted_at,
-                    status: p.status
-                }))
         };
 
         res.json({ success: true, data: response });

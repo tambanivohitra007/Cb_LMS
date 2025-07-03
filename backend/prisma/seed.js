@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('Start seeding ...');
 
-    // Clean up existing data
+    // Clean up existing data in correct order (children first)
+    await prisma.competencyProgress.deleteMany();
     await prisma.submission.deleteMany();
     await prisma.competency.deleteMany();
     await prisma.assignment.deleteMany();
@@ -154,6 +155,89 @@ async function main() {
     });
 
     console.log('Created submission:', submission);
+
+    // --- Create Competency Progress Records ---
+    // Get the competencies that were created
+    const algorithmComp = await prisma.competency.findFirst({
+        where: { name: 'Algorithm Analysis' }
+    });
+    
+    const visualizationComp = await prisma.competency.findFirst({
+        where: { name: 'Data Visualization' }
+    });
+    
+    const dbDesignComp = await prisma.competency.findFirst({
+        where: { name: 'Relational Database Design' }
+    });
+    
+    const sqlComp = await prisma.competency.findFirst({
+        where: { name: 'SQL Querying' }
+    });
+
+    // Create progress records for students
+    if (algorithmComp) {
+        await prisma.competencyProgress.create({
+            data: {
+                competencyId: algorithmComp.id,
+                studentId: student.id,
+                status: 'MASTERED',
+                submissionId: submission.id,
+                achieved_at: new Date(),
+                feedback: 'Excellent work on algorithm analysis!'
+            }
+        });
+    }
+
+    if (visualizationComp) {
+        await prisma.competencyProgress.create({
+            data: {
+                competencyId: visualizationComp.id,
+                studentId: student.id,
+                status: 'ACHIEVED',
+                submissionId: submission.id,
+                achieved_at: new Date(),
+                feedback: 'Good visualization skills demonstrated.'
+            }
+        });
+    }
+
+    if (dbDesignComp) {
+        await prisma.competencyProgress.create({
+            data: {
+                competencyId: dbDesignComp.id,
+                studentId: student.id,
+                status: 'IN_PROGRESS',
+                feedback: 'Working on database design concepts.'
+            }
+        });
+    }
+
+    // Create progress for student2 as well
+    if (algorithmComp) {
+        await prisma.competencyProgress.create({
+            data: {
+                competencyId: algorithmComp.id,
+                studentId: student2.id,
+                status: 'ACHIEVED',
+                achieved_at: new Date(),
+                feedback: 'Solid understanding of algorithms.'
+            }
+        });
+    }
+
+    if (sqlComp) {
+        await prisma.competencyProgress.create({
+            data: {
+                competencyId: sqlComp.id,
+                studentId: student2.id,
+                status: 'MASTERED',
+                achieved_at: new Date(),
+                feedback: 'Exceptional SQL skills!'
+            }
+        });
+    }
+
+    console.log('Created competency progress records');
 
     console.log('Seeding finished.');
 }
