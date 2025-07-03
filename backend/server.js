@@ -1034,6 +1034,265 @@ app.delete('/api/trash/permanent/class/:id', authMiddleware, roleMiddleware(['TE
     }
 });
 
+// --- STUDENT MANAGEMENT ROUTES (Teacher only) ---
+// Get all students available for enrollment (excluding those already in the class)
+app.get('/api/classes/:classId/available-students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const classIdInt = parseInt(classId);
+        
+        if (isNaN(classIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID'
+            });
+        }
+        
+        // Verify the class exists and belongs to the teacher
+        const classExists = await prisma.class.findFirst({
+            where: { 
+                id: classIdInt, 
+                teacherId: req.user.userId,
+                deleted_at: null 
+            }
+        });
+        
+        if (!classExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission to manage it'
+            });
+        }
+        
+        // Get all students not already enrolled in this class
+        const availableStudents = await prisma.user.findMany({
+            where: {
+                role: 'STUDENT',
+                deleted_at: null,
+                NOT: {
+                    classes: {
+                        some: { id: classIdInt }
+                    }
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                photo: true
+            },
+            orderBy: { name: 'asc' }
+        });
+        
+        res.json({ success: true, data: availableStudents });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Add student to class
+app.post('/api/classes/:classId/students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const { studentId } = req.body;
+        const classIdInt = parseInt(classId);
+        const studentIdInt = parseInt(studentId);
+        
+        if (isNaN(classIdInt) || isNaN(studentIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID or student ID'
+            });
+        }
+        
+        // Verify the class exists and belongs to the teacher
+        const classExists = await prisma.class.findFirst({
+            where: { 
+                id: classIdInt, 
+                teacherId: req.user.userId,
+                deleted_at: null 
+            }
+        });
+        
+        if (!classExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission to manage it'
+            });
+        }
+        
+        // Verify the student exists and is a student
+        const student = await prisma.user.findFirst({
+            where: { 
+                id: studentIdInt, 
+                role: 'STUDENT',
+                deleted_at: null 
+            }
+        });
+        
+        if (!student) {
+            return res.status(404).json({
+                success: false,
+                message: 'Student not found'
+            });
+        }
+        
+        // Check if student is already enrolled
+        const enrollment = await prisma.class.findFirst({
+            where: {
+                id: classIdInt,
+                students: {
+                    some: { id: studentIdInt }
+                }
+            }
+        });
+        
+        if (enrollment) {
+            return res.status(409).json({
+                success: false,
+                message: 'Student is already enrolled in this class'
+            });
+        }
+        
+        // Add student to class
+        await prisma.class.update({
+            where: { id: classIdInt },
+            data: {
+                students: {
+                    connect: { id: studentIdInt }
+                }
+            }
+        });
+        
+        res.json({ 
+            success: true, 
+            message: `${student.name} has been added to the class successfully` 
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Remove student from class
+app.delete('/api/classes/:classId/students/:studentId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId, studentId } = req.params;
+        const classIdInt = parseInt(classId);
+        const studentIdInt = parseInt(studentId);
+        
+        if (isNaN(classIdInt) || isNaN(studentIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID or student ID'
+            });
+        }
+        
+        // Verify the class exists and belongs to the teacher
+        const classExists = await prisma.class.findFirst({
+            where: { 
+                id: classIdInt, 
+                teacherId: req.user.userId,
+                deleted_at: null 
+            }
+        });
+        
+        if (!classExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission to manage it'
+            });
+        }
+        
+        // Verify the student is enrolled in this class
+        const enrollment = await prisma.class.findFirst({
+            where: {
+                id: classIdInt,
+                students: {
+                    some: { id: studentIdInt }
+                }
+            },
+            include: {
+                students: {
+                    where: { id: studentIdInt },
+                    select: { name: true }
+                }
+            }
+        });
+        
+        if (!enrollment || enrollment.students.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Student is not enrolled in this class'
+            });
+        }
+        
+        // Remove student from class
+        await prisma.class.update({
+            where: { id: classIdInt },
+            data: {
+                students: {
+                    disconnect: { id: studentIdInt }
+                }
+            }
+        });
+        
+        res.json({ 
+            success: true, 
+            message: `${enrollment.students[0].name} has been removed from the class successfully` 
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get students enrolled in a specific class
+app.get('/api/classes/:classId/students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const classIdInt = parseInt(classId);
+        
+        if (isNaN(classIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID'
+            });
+        }
+        
+        // Verify the class exists and belongs to the teacher
+        const classWithStudents = await prisma.class.findFirst({
+            where: { 
+                id: classIdInt, 
+                teacherId: req.user.userId,
+                deleted_at: null 
+            },
+            include: {
+                students: {
+                    where: { deleted_at: null },
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        photo: true,
+                        created_at: true
+                    },
+                    orderBy: { name: 'asc' }
+                }
+            }
+        });
+        
+        if (!classWithStudents) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission to view it'
+            });
+        }
+        
+        res.json({ success: true, data: classWithStudents.students });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({ 
@@ -1071,5 +1330,3 @@ app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
-   
- 

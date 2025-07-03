@@ -72,6 +72,7 @@ src/
     ├── StudentDashboard.jsx   # Student dashboard with assignments
     ├── TeacherDashboard.jsx   # Teacher dashboard with statistics
     ├── ClassManagement.jsx    # Class CRUD operations (Teacher)
+    ├── StudentManagement.jsx  # Student enrollment management (Teacher)
     ├── AssignmentManagement.jsx # Assignment CRUD operations (Teacher)
     ├── UserManagement.jsx     # User CRUD operations (Admin)
     ├── Trash.jsx             # Soft delete management (Teacher)
@@ -89,11 +90,16 @@ src/
 ### Teacher Features:
 - **Dashboard**: Overview statistics (students, classes, competencies)
 - **Class Management**: Create, view, edit, and delete classes
+- **Student Management**: Add and remove students from classes with dedicated interface
 - **Assignment Management**: Create, view, edit, and delete assignments for each class
 - **Assignment Overview**: View all assignments and submission counts
 - **Competency Tracking**: Define competencies for each assignment
 - **Trash Management**: Restore or permanently delete classes
-- **Trash Management**: Restore or permanently delete classes
+
+### Admin Features:
+- **User Management**: Full CRUD operations for all users (students, teachers, admins)
+- **Role Management**: Assign and modify user roles
+- **System Overview**: Access to all system data and user management
 
 ## Demo Accounts
 
@@ -132,6 +138,10 @@ After the backend is seeded, you can use these accounts:
 - `POST /api/classes` - Create new class (teacher only)
 - `PUT /api/classes/:id` - Update class (teacher only)
 - `DELETE /api/classes/:id` - Delete class (teacher only)
+- `GET /api/classes/:classId/students` - Get students in class (teacher only)
+- `GET /api/classes/:classId/available-students` - Get available students (teacher only)
+- `POST /api/classes/:classId/students` - Add student to class (teacher only)
+- `DELETE /api/classes/:classId/students/:studentId` - Remove student from class (teacher only)
 - `GET /api/classes/:classId/assignments` - Get assignments for a class (teacher only)
 - `POST /api/assignments` - Create assignment (teacher only)
 - `PUT /api/assignments/:id` - Update assignment (teacher only)

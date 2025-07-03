@@ -253,12 +253,18 @@ function ClassManagement() {
                                                     Assignments: {cls.assignments?.length || 0}
                                                 </p>
                                             </div>
-                                            <div className="flex space-x-2">
+                                            <div className="flex flex-wrap gap-2">
                                                 <button 
                                                     onClick={() => navigate(`/classes/${cls.id}/assignments`)}
                                                     className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm"
                                                 >
                                                     Assignments
+                                                </button>
+                                                <button 
+                                                    onClick={() => navigate(`/classes/${cls.id}/students`)}
+                                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                                                >
+                                                    Students
                                                 </button>
                                                 <button 
                                                     onClick={() => handleEdit(cls)}

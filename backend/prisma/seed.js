@@ -46,8 +46,39 @@ async function main() {
             photo: 'https://i.pravatar.cc/150?u=student@demo.com'
         },
     });
+
+    // Create additional students for testing student management
+    const student2 = await prisma.user.create({
+        data: {
+            email: 'student2@demo.com',
+            name: 'Grace Hopper',
+            password: studentPassword,
+            role: 'STUDENT',
+            photo: 'https://i.pravatar.cc/150?u=student2@demo.com'
+        },
+    });
+
+    const student3 = await prisma.user.create({
+        data: {
+            email: 'student3@demo.com',
+            name: 'Katherine Johnson',
+            password: studentPassword,
+            role: 'STUDENT',
+            photo: 'https://i.pravatar.cc/150?u=student3@demo.com'
+        },
+    });
+
+    const student4 = await prisma.user.create({
+        data: {
+            email: 'student4@demo.com',
+            name: 'Dorothy Vaughan',
+            password: studentPassword,
+            role: 'STUDENT',
+            photo: 'https://i.pravatar.cc/150?u=student4@demo.com'
+        },
+    });
     
-    console.log('Created users:', { admin, teacher, student });
+    console.log('Created users:', { admin, teacher, student, student2, student3, student4 });
 
     // --- Create a Class ---
     const computerScienceClass = await prisma.class.create({
@@ -56,12 +87,29 @@ async function main() {
             description: 'A foundational course on algorithms, data structures, and programming.',
             teacherId: teacher.id,
             students: {
-                connect: { id: student.id },
+                connect: [
+                    { id: student.id },
+                    { id: student2.id }
+                ]
             },
         },
     });
 
-    console.log('Created class:', computerScienceClass);
+    // Create a second class with different students
+    const mathClass = await prisma.class.create({
+        data: {
+            name: 'Advanced Mathematics',
+            description: 'Advanced mathematical concepts and problem solving.',
+            teacherId: teacher.id,
+            students: {
+                connect: [
+                    { id: student3.id }
+                ]
+            },
+        },
+    });
+
+    console.log('Created classes:', { computerScienceClass, mathClass });
 
     // --- Create Assignments with Competencies ---
     const assignment1 = await prisma.assignment.create({

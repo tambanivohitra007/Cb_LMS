@@ -73,6 +73,12 @@ A Node.js/Express backend for a Competency-Based Learning Management System.
 - `PUT /api/classes/:id` - Update class (Teacher only)
 - `DELETE /api/classes/:id` - Soft delete class (Teacher only)
 
+### Student Management (Teacher only)
+- `GET /api/classes/:classId/students` - Get students enrolled in a specific class
+- `GET /api/classes/:classId/available-students` - Get students available for enrollment
+- `POST /api/classes/:classId/students` - Add student to class
+- `DELETE /api/classes/:classId/students/:studentId` - Remove student from class
+
 ### Assignments
 - `GET /api/classes/:classId/assignments` - Get assignments for a specific class
 - `POST /api/assignments` - Create assignment (Teacher only)
@@ -105,8 +111,15 @@ After running the seed script, you can use these accounts:
 **Teacher Account:**
 - Email: `teacher@demo.com`
 - Password: `password`
+- Role: Teacher (can manage classes, assignments, and students)
 
-**Student Account:**
+**Student Accounts:**
+- Email: `student@demo.com` | Password: `password` | Name: Alan Turing
+- Email: `student2@demo.com` | Password: `password` | Name: Grace Hopper  
+- Email: `student3@demo.com` | Password: `password` | Name: Katherine Johnson
+- Email: `student4@demo.com` | Password: `password` | Name: Dorothy Vaughan
+
+> Note: Student accounts are pre-enrolled in different classes for testing student management features.
 - Email: `student@demo.com`
 - Password: `password`
 

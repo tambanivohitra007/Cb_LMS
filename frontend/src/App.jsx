@@ -6,6 +6,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import ClassManagement from './pages/ClassManagement';
 import AssignmentManagement from './pages/AssignmentManagement';
+import StudentManagement from './pages/StudentManagement';
 import UserManagement from './pages/UserManagement';
 import Trash from './pages/Trash';
 import Profile from './pages/Profile';
@@ -94,6 +95,7 @@ function App() {
                             } />
                              <Route path="/classes" element={<ProtectedRoute role="TEACHER"><ClassManagement /></ProtectedRoute>} />
                              <Route path="/classes/:classId/assignments" element={<ProtectedRoute role="TEACHER"><AssignmentManagement /></ProtectedRoute>} />
+                             <Route path="/classes/:classId/students" element={<ProtectedRoute role="TEACHER"><StudentManagement /></ProtectedRoute>} />
                              <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
                              <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
                              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
