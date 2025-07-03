@@ -1331,6 +1331,70 @@ app.post('/api/submissions/:id/feedback', authMiddleware, roleMiddleware(['TEACH
     }
 });
 
+// --- PROFILE ROUTES (Self-management) ---
+app.get('/api/profile', authMiddleware, async (req, res, next) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                photo: true,
+                created_at: true,
+                updated_at: true
+            }
+        });
+        if (!user || user.deleted_at) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        res.json({ success: true, data: user });
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.put('/api/profile', authMiddleware, async (req, res, next) => {
+    try {
+        const { name, email, photo } = req.body;
+        if (!name || !email) {
+            return res.status(400).json({ success: false, message: 'Name and email are required' });
+        }
+        // Check if email is already taken by another user
+        const emailExists = await prisma.user.findFirst({
+            where: {
+                email: email.toLowerCase(),
+                id: { not: req.user.id },
+                deleted_at: null
+            }
+        });
+        if (emailExists) {
+            return res.status(409).json({ success: false, message: 'Email is already taken by another user' });
+        }
+        const updatedUser = await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                name,
+                email: email.toLowerCase(),
+                photo: photo || undefined
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                photo: true,
+                created_at: true,
+                updated_at: true
+            }
+        });
+        res.json({ success: true, data: updatedUser });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({ 

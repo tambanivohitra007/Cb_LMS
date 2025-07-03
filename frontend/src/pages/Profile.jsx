@@ -1,38 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 
 function Profile() {
-    const { user, apiClient } = useAuth();
+    const { user, apiClient, setUser } = useAuth();
     const [name, setName] = useState(user?.name || '');
     const [email, setEmail] = useState(user?.email || '');
+    const [photo, setPhoto] = useState(user?.photo || '');
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    useEffect(() => {
+        // Fetch profile from backend
+        const fetchProfile = async () => {
+            try {
+                setError('');
+                const res = await apiClient.get('/profile');
+                const profile = res.data;
+                setName(profile.name || '');
+                setEmail(profile.email || '');
+                setPhoto(profile.photo || '');
+                if (setUser) setUser(profile); // update global user if available
+            } catch (err) {
+                setError('Failed to load profile.');
+            }
+        };
+        fetchProfile();
+        // eslint-disable-next-line
+    }, []);
 
     const handleSave = async () => {
         if (!name.trim() || !email.trim()) {
             setError('Name and email are required');
             return;
         }
-
         try {
             setLoading(true);
             setError('');
             setSuccess('');
-            
-            // Note: This endpoint would need to be implemented in the backend
-            // For now, we'll just simulate the update
-            console.log("Profile update would be sent to API:", { name: name.trim(), email: email.trim() });
-            
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            setSuccess('Profile updated successfully! (Note: This is a simulation - backend endpoint needed)');
+            const res = await apiClient.put('/profile', {
+                name: name.trim(),
+                email: email.trim(),
+                photo: photo.trim()
+            });
+            setSuccess('Profile updated successfully!');
             setIsEditing(false);
+            if (setUser) setUser(res.data);
         } catch (error) {
-            console.error('Failed to update profile', error);
-            setError('Failed to update profile. Please try again.');
+            setError(error?.response?.data?.message || 'Failed to update profile. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -41,6 +57,7 @@ function Profile() {
     const handleCancel = () => {
         setName(user?.name || '');
         setEmail(user?.email || '');
+        setPhoto(user?.photo || '');
         setIsEditing(false);
         setError('');
         setSuccess('');
