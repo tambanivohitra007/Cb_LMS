@@ -43,6 +43,7 @@ model Assignment {
   class        Class        @relation(fields: [classId], references: [id])
   competencies Competency[]
   submissions  Submission[]
+  deadline     DateTime?    // Optional deadline for the assignment
   created_at   DateTime     @default(now())
   updated_at   DateTime     @updatedAt
   deleted_at   DateTime?
@@ -67,5 +68,7 @@ model Submission {
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
   submitted_at DateTime @default(now())
   reviewed_at  DateTime?
+  feedback     String?   // Teacher's feedback on the submission
+  feedback_at  DateTime? // When the feedback was given
 }
 

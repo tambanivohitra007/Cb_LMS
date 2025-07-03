@@ -69,19 +69,25 @@ const assignmentSchema = Joi.object({
     title: Joi.string().min(1).max(200).required(),
     description: Joi.string().max(10000).optional(), // Increased for rich content
     classId: Joi.number().integer().positive().required(),
-    competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required()
+    competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required(),
+    deadline: Joi.date().iso().optional() // New: deadline for assignment
 });
 
 const assignmentUpdateSchema = Joi.object({
     title: Joi.string().min(1).max(200).required(),
     description: Joi.string().max(10000).optional(), // Increased for rich content
     classId: Joi.number().integer().positive().optional(), // Optional for updates (ignored)
-    competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required()
+    competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required(),
+    deadline: Joi.date().iso().optional() // New: deadline for assignment
 });
 
 const submissionSchema = Joi.object({
     assignmentId: Joi.number().integer().positive().required(),
     content: Joi.string().max(5000).optional()
+});
+
+const submissionFeedbackSchema = Joi.object({
+    feedback: Joi.string().max(5000).required()
 });
 
 // --- AUTHENTICATION MIDDLEWARE ---
@@ -588,7 +594,7 @@ app.delete('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), asyn
 // --- ASSIGNMENT ROUTES ---
 app.post('/api/assignments', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(assignmentSchema), async (req, res, next) => {
     try {
-        const { title, description, classId, competencyNames } = req.body;
+        const { title, description, classId, competencyNames, deadline } = req.body;
         
         // Verify the class exists and belongs to the teacher
         const existingClass = await prisma.class.findFirst({
@@ -611,6 +617,7 @@ app.post('/api/assignments', authMiddleware, roleMiddleware(['TEACHER']), valida
                 title,
                 description,
                 classId,
+                deadline: deadline ? new Date(deadline) : null, // Save deadline if provided
                 competencies: {
                     create: competencyNames.map(name => ({ name }))
                 }
@@ -691,7 +698,7 @@ app.get('/api/classes/:classId/assignments', authMiddleware, async (req, res, ne
 app.put('/api/assignments/:id', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(assignmentUpdateSchema), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { title, description, competencyNames } = req.body;
+        const { title, description, competencyNames, deadline } = req.body;
         const assignmentId = parseInt(id);
         
         if (isNaN(assignmentId)) {
@@ -733,6 +740,7 @@ app.put('/api/assignments/:id', authMiddleware, roleMiddleware(['TEACHER']), val
             data: {
                 title,
                 description,
+                deadline: deadline ? new Date(deadline) : undefined,
                 competencies: {
                     create: competencyNames.map(name => ({ name }))
                 }
@@ -1288,6 +1296,36 @@ app.get('/api/classes/:classId/students', authMiddleware, roleMiddleware(['TEACH
         }
         
         res.json({ success: true, data: classWithStudents.students });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- SUBMISSION FEEDBACK ROUTE ---
+app.post('/api/submissions/:id/feedback', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(submissionFeedbackSchema), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { feedback } = req.body;
+        const submissionId = parseInt(id);
+        if (isNaN(submissionId)) {
+            return res.status(400).json({ success: false, message: 'Invalid submission ID' });
+        }
+        // Find submission and ensure teacher owns the assignment
+        const submission = await prisma.submission.findUnique({
+            where: { id: submissionId },
+            include: { assignment: { include: { class: true } } }
+        });
+        if (!submission || !submission.assignment || submission.assignment.class.teacherId !== req.user.userId) {
+            return res.status(404).json({ success: false, message: 'Submission not found or you do not have permission' });
+        }
+        const updatedSubmission = await prisma.submission.update({
+            where: { id: submissionId },
+            data: {
+                feedback,
+                feedback_at: new Date()
+            }
+        });
+        res.json({ success: true, data: updatedSubmission });
     } catch (error) {
         next(error);
     }

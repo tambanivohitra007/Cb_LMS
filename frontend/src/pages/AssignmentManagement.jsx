@@ -18,12 +18,14 @@ function AssignmentManagement() {
     const [newAssignment, setNewAssignment] = useState({
         title: '',
         description: '',
-        competencyNames: ['']
+        competencyNames: [''],
+        deadline: '' // New field
     });
     const [editAssignment, setEditAssignment] = useState({
         title: '',
         description: '',
-        competencyNames: ['']
+        competencyNames: [''],
+        deadline: '' // New field
     });
     const [creating, setCreating] = useState(false);
     const [updating, setUpdating] = useState(false);
@@ -68,23 +70,21 @@ function AssignmentManagement() {
             alert('Assignment title is required');
             return;
         }
-
         const competencyNames = newAssignment.competencyNames.filter(name => name.trim() !== '');
         if (competencyNames.length === 0) {
             alert('At least one competency is required');
             return;
         }
-
         try {
             setCreating(true);
             await apiClient.post('/assignments', {
                 title: newAssignment.title.trim(),
                 description: newAssignment.description.trim(),
                 classId: parseInt(classId),
-                competencyNames: competencyNames
+                competencyNames: competencyNames,
+                deadline: newAssignment.deadline ? new Date(newAssignment.deadline).toISOString() : undefined
             });
-            
-            setNewAssignment({ title: '', description: '', competencyNames: [''] });
+            setNewAssignment({ title: '', description: '', competencyNames: [''], deadline: '' });
             setShowCreateForm(false);
             fetchAssignments();
         } catch (error) {
@@ -100,7 +100,8 @@ function AssignmentManagement() {
         setEditAssignment({
             title: assignment.title,
             description: assignment.description || '',
-            competencyNames: assignment.competencies.map(comp => comp.name)
+            competencyNames: assignment.competencies.map(comp => comp.name),
+            deadline: assignment.deadline ? assignment.deadline.split('T')[0] : ''
         });
         setShowCreateForm(false);
     };
@@ -111,24 +112,22 @@ function AssignmentManagement() {
             alert('Assignment title is required');
             return;
         }
-
         const competencyNames = editAssignment.competencyNames.filter(name => name.trim() !== '');
         if (competencyNames.length === 0) {
             alert('At least one competency is required');
             return;
         }
-
         try {
             setUpdating(true);
             await apiClient.put(`/assignments/${editingAssignment}`, {
                 title: editAssignment.title.trim(),
                 description: editAssignment.description.trim(),
                 classId: parseInt(classId),
-                competencyNames: competencyNames
+                competencyNames: competencyNames,
+                deadline: editAssignment.deadline ? new Date(editAssignment.deadline).toISOString() : undefined
             });
-            
             setEditingAssignment(null);
-            setEditAssignment({ title: '', description: '', competencyNames: [''] });
+            setEditAssignment({ title: '', description: '', competencyNames: [''], deadline: '' });
             fetchAssignments();
         } catch (error) {
             console.error('Failed to update assignment', error);
@@ -152,7 +151,7 @@ function AssignmentManagement() {
 
     const handleCancelEdit = () => {
         setEditingAssignment(null);
-        setEditAssignment({ title: '', description: '', competencyNames: [''] });
+        setEditAssignment({ title: '', description: '', competencyNames: [''], deadline: '' });
     };
 
     const addCompetencyField = (isEdit = false) => {
@@ -312,6 +311,18 @@ function AssignmentManagement() {
                             </button>
                         </div>
 
+                        <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                Deadline
+                            </label>
+                            <input
+                                type="date"
+                                value={newAssignment.deadline}
+                                onChange={(e) => setNewAssignment({ ...newAssignment, deadline: e.target.value })}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            />
+                        </div>
+
                         <div className="flex space-x-4">
                             <button
                                 type="submit"
@@ -404,6 +415,18 @@ function AssignmentManagement() {
                                                 </button>
                                             </div>
 
+                                            <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                    Deadline
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={editAssignment.deadline}
+                                                    onChange={(e) => setEditAssignment({ ...editAssignment, deadline: e.target.value })}
+                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                />
+                                            </div>
+
                                             <div className="flex space-x-4">
                                                 <button
                                                     type="submit"
@@ -450,6 +473,13 @@ function AssignmentManagement() {
                                                             </span>
                                                         ))}
                                                     </div>
+                                                </div>
+
+                                                <div className="mt-3">
+                                                    <h4 className="font-semibold text-sm text-gray-700 mb-1">Deadline:</h4>
+                                                    <p className="text-sm text-gray-500">
+                                                        {assignment.deadline ? new Date(assignment.deadline).toLocaleDateString() : 'No deadline set'}
+                                                    </p>
                                                 </div>
                                             </div>
                                             
