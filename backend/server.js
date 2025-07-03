@@ -3301,3 +3301,324 @@ app.get('/api/reports/student/:studentId/mastery-transcript', authMiddleware, ro
 });
 
 // --- END REPORTING ENDPOINTS ---
+
+// --- TRASH ENDPOINTS ---
+
+// Get all deleted items for the teacher
+app.get('/api/trash', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        // Get deleted classes for this teacher
+        const deletedClasses = await prisma.class.findMany({
+            where: {
+                teacherId: req.user.userId,
+                deleted_at: { not: null }
+            },
+            include: {
+                teacher: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                students: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                assignments: {
+                    where: {
+                        deleted_at: null // Only include non-deleted assignments
+                    },
+                    select: {
+                        id: true,
+                        title: true
+                    }
+                }
+            },
+            orderBy: {
+                deleted_at: 'desc'
+            }
+        });
+
+        // Get deleted assignments for this teacher
+        const deletedAssignments = await prisma.assignment.findMany({
+            where: {
+                class: {
+                    teacherId: req.user.userId
+                },
+                deleted_at: { not: null }
+            },
+            include: {
+                class: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                competencies: true,
+                submissions: {
+                    select: {
+                        id: true,
+                        studentId: true
+                    }
+                }
+            },
+            orderBy: {
+                deleted_at: 'desc'
+            }
+        });
+
+        res.json({
+            success: true,
+            data: {
+                deletedClasses,
+                deletedAssignments
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Restore a deleted class
+app.post('/api/trash/restore/class/:classId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+
+        // Verify the class belongs to this teacher and is deleted
+        const deletedClass = await prisma.class.findFirst({
+            where: {
+                id: parseInt(classId),
+                teacherId: req.user.userId,
+                deleted_at: { not: null }
+            }
+        });
+
+        if (!deletedClass) {
+            return res.status(404).json({
+                success: false,
+                message: 'Deleted class not found or you do not have permission to restore it'
+            });
+        }
+
+        // Restore the class by setting deleted_at to null
+        const restoredClass = await prisma.class.update({
+            where: { id: parseInt(classId) },
+            data: { deleted_at: null },
+            include: {
+                teacher: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                students: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Class restored successfully',
+            data: restoredClass
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Permanently delete a class
+app.delete('/api/trash/permanent/class/:classId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+
+        // Verify the class belongs to this teacher and is deleted
+        const deletedClass = await prisma.class.findFirst({
+            where: {
+                id: parseInt(classId),
+                teacherId: req.user.userId,
+                deleted_at: { not: null }
+            }
+        });
+
+        if (!deletedClass) {
+            return res.status(404).json({
+                success: false,
+                message: 'Deleted class not found or you do not have permission to delete it'
+            });
+        }
+
+        // Delete all related data in the correct order
+        await prisma.$transaction(async (tx) => {
+            // Delete competency progress
+            await tx.competencyProgress.deleteMany({
+                where: {
+                    competency: {
+                        assignment: {
+                            classId: parseInt(classId)
+                        }
+                    }
+                }
+            });
+
+            // Delete submissions
+            await tx.submission.deleteMany({
+                where: {
+                    assignment: {
+                        classId: parseInt(classId)
+                    }
+                }
+            });
+
+            // Delete competencies
+            await tx.competency.deleteMany({
+                where: {
+                    assignment: {
+                        classId: parseInt(classId)
+                    }
+                }
+            });
+
+            // Delete assignments
+            await tx.assignment.deleteMany({
+                where: {
+                    classId: parseInt(classId)
+                }
+            });
+
+            // Finally delete the class
+            await tx.class.delete({
+                where: { id: parseInt(classId) }
+            });
+        });
+
+        res.json({
+            success: true,
+            message: 'Class permanently deleted'
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Restore a deleted assignment
+app.post('/api/trash/restore/assignment/:assignmentId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { assignmentId } = req.params;
+
+        // Verify the assignment belongs to this teacher and is deleted
+        const deletedAssignment = await prisma.assignment.findFirst({
+            where: {
+                id: parseInt(assignmentId),
+                class: {
+                    teacherId: req.user.userId
+                },
+                deleted_at: { not: null }
+            }
+        });
+
+        if (!deletedAssignment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Deleted assignment not found or you do not have permission to restore it'
+            });
+        }
+
+        // Restore the assignment by setting deleted_at to null
+        const restoredAssignment = await prisma.assignment.update({
+            where: { id: parseInt(assignmentId) },
+            data: { deleted_at: null },
+            include: {
+                class: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                competencies: true
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Assignment restored successfully',
+            data: restoredAssignment
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Permanently delete an assignment
+app.delete('/api/trash/permanent/assignment/:assignmentId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { assignmentId } = req.params;
+
+        // Verify the assignment belongs to this teacher and is deleted
+        const deletedAssignment = await prisma.assignment.findFirst({
+            where: {
+                id: parseInt(assignmentId),
+                class: {
+                    teacherId: req.user.userId
+                },
+                deleted_at: { not: null }
+            }
+        });
+
+        if (!deletedAssignment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Deleted assignment not found or you do not have permission to delete it'
+            });
+        }
+
+        // Delete all related data in the correct order
+        await prisma.$transaction(async (tx) => {
+            // Delete competency progress
+            await tx.competencyProgress.deleteMany({
+                where: {
+                    competency: {
+                        assignmentId: parseInt(assignmentId)
+                    }
+                }
+            });
+
+            // Delete submissions
+            await tx.submission.deleteMany({
+                where: {
+                    assignmentId: parseInt(assignmentId)
+                }
+            });
+
+            // Delete competencies
+            await tx.competency.deleteMany({
+                where: {
+                    assignmentId: parseInt(assignmentId)
+                }
+            });
+
+            // Finally delete the assignment
+            await tx.assignment.delete({
+                where: { id: parseInt(assignmentId) }
+            });
+        });
+
+        res.json({
+            success: true,
+            message: 'Assignment permanently deleted'
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- END TRASH ENDPOINTS ---
