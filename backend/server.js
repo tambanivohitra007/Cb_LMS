@@ -1114,6 +1114,50 @@ app.get('/api/cohorts/:id/students', authMiddleware, roleMiddleware(['TEACHER'])
     }
 });
 
+// Get students for a specific class
+app.get('/api/classes/:classId/students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const classIdInt = parseInt(classId);
+        
+        if (isNaN(classIdInt)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID'
+            });
+        }
+        
+        // Verify the class exists and belongs to the teacher
+        const classWithStudents = await prisma.class.findFirst({
+            where: { 
+                id: classIdInt,
+                teacherId: req.user.userId,
+                deleted_at: null 
+            },
+            include: {
+                students: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        created_at: true
+                    }
+                }
+            }
+        });
+        
+        if (!classWithStudents) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission to access it'
+            });
+        }
+        
+        res.json({ success: true, data: classWithStudents.students });
+    } catch (error) {
+        next(error);
+    }
+});
 
 // --- ASSIGNMENT ROUTES ---
 app.post('/api/assignments', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(assignmentSchema), async (req, res, next) => {
@@ -1870,6 +1914,638 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// ===== REPORTING ENDPOINTS =====
+
+// Get comprehensive student progress report
+app.get('/api/reports/student/:studentId/progress', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { studentId } = req.params;
+        const { startDate, endDate, classId } = req.query;
+
+        // Verify teacher has access to this student
+        const studentAccess = await prisma.user.findFirst({
+            where: {
+                id: parseInt(studentId),
+                classes: {
+                    some: {
+                        teacherId: req.user.userId
+                    }
+                }
+            }
+        });
+
+        if (!studentAccess) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to this student'
+            });
+        }
+
+        // Build where clause for filtering
+        let whereClause = {
+            studentId: parseInt(studentId)
+        };
+
+        if (classId) {
+            whereClause.competency = {
+                assignment: {
+                    classId: parseInt(classId)
+                }
+            };
+        } else {
+            whereClause.competency = {
+                assignment: {
+                    class: {
+                        teacherId: req.user.userId
+                    }
+                }
+            };
+        }
+
+        if (startDate || endDate) {
+            whereClause.created_at = {};
+            if (startDate) whereClause.created_at.gte = new Date(startDate);
+            if (endDate) whereClause.created_at.lte = new Date(endDate);
+        }
+
+        // Get all competency progress for the student
+        const progressHistory = await prisma.competencyProgress.findMany({
+            where: whereClause,
+            include: {
+                competency: {
+                    include: {
+                        assignment: {
+                            include: {
+                                class: true
+                            }
+                        }
+                    }
+                },
+                student: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            },
+            orderBy: {
+                created_at: 'asc'
+            }
+        });
+
+        // Get student's submissions for context
+        const submissions = await prisma.submission.findMany({
+            where: {
+                studentId: parseInt(studentId),
+                assignment: {
+                    class: classId ? {
+                        id: parseInt(classId)
+                    } : {
+                        teacherId: req.user.userId
+                    }
+                }
+            },
+            include: {
+                assignment: {
+                    include: {
+                        class: true,
+                        competencies: true
+                    }
+                }
+            },
+            orderBy: {
+                submitted_at: 'asc'
+            }
+        });
+
+        // Calculate progress statistics over time
+        const progressOverTime = [];
+        const competencyMap = new Map();
+        
+        progressHistory.forEach(progress => {
+            const date = progress.created_at.toISOString().split('T')[0];
+            const competencyKey = `${progress.competency.assignment.class.name} - ${progress.competency.assignment.title} - ${progress.competency.name}`;
+            
+            if (!competencyMap.has(competencyKey)) {
+                competencyMap.set(competencyKey, []);
+            }
+            
+            competencyMap.get(competencyKey).push({
+                date,
+                status: progress.status,
+                feedback: progress.feedback,
+                achievedAt: progress.achieved_at,
+                className: progress.competency.assignment.class.name,
+                assignmentTitle: progress.competency.assignment.title,
+                competencyName: progress.competency.name,
+                competencyDescription: progress.competency.description
+            });
+        });
+
+        // Calculate summary statistics
+        const totalCompetencies = competencyMap.size;
+        let achievedCount = 0;
+        let masteredCount = 0;
+        let inProgressCount = 0;
+        let notStartedCount = 0;
+
+        competencyMap.forEach(progressArray => {
+            const latestProgress = progressArray[progressArray.length - 1];
+            switch (latestProgress.status) {
+                case 'ACHIEVED': achievedCount++; break;
+                case 'MASTERED': masteredCount++; break;
+                case 'IN_PROGRESS': inProgressCount++; break;
+                default: notStartedCount++; break;
+            }
+        });
+
+        // Generate timeline data for charts
+        const timelineData = [];
+        const dates = [...new Set(progressHistory.map(p => p.created_at.toISOString().split('T')[0]))].sort();
+        
+        dates.forEach(date => {
+            const dayProgress = progressHistory.filter(p => p.created_at.toISOString().split('T')[0] === date);
+            const statusCounts = {
+                date,
+                achieved: dayProgress.filter(p => p.status === 'ACHIEVED').length,
+                mastered: dayProgress.filter(p => p.status === 'MASTERED').length,
+                inProgress: dayProgress.filter(p => p.status === 'IN_PROGRESS').length,
+                total: dayProgress.length
+            };
+            timelineData.push(statusCounts);
+        });
+
+        // Class breakdown
+        const classSummary = {};
+        progressHistory.forEach(progress => {
+            const className = progress.competency.assignment.class.name;
+            if (!classSummary[className]) {
+                classSummary[className] = {
+                    className,
+                    classId: progress.competency.assignment.class.id,
+                    totalCompetencies: 0,
+                    achieved: 0,
+                    mastered: 0,
+                    inProgress: 0,
+                    notStarted: 0
+                };
+            }
+            classSummary[className].totalCompetencies++;
+            
+            switch (progress.status) {
+                case 'ACHIEVED': classSummary[className].achieved++; break;
+                case 'MASTERED': classSummary[className].mastered++; break;
+                case 'IN_PROGRESS': classSummary[className].inProgress++; break;
+                default: classSummary[className].notStarted++; break;
+            }
+        });
+
+        const response = {
+            student: progressHistory[0]?.student || { id: parseInt(studentId), name: 'Unknown', email: 'Unknown' },
+            reportPeriod: {
+                startDate: startDate || progressHistory[0]?.created_at,
+                endDate: endDate || progressHistory[progressHistory.length - 1]?.created_at,
+                classFilter: classId || null
+            },
+            summary: {
+                totalCompetencies,
+                achieved: achievedCount,
+                mastered: masteredCount,
+                in_progress: inProgressCount,
+                not_started: notStartedCount,
+                completionRate: totalCompetencies > 0 ? Math.round(((achievedCount + masteredCount) / totalCompetencies) * 100) : 0
+            },
+            timeline: Array.from(competencyMap.entries()).map(([competencyKey, progressArray]) => {
+                const parts = competencyKey.split(' - ');
+                const latestProgress = progressArray[progressArray.length - 1];
+                return {
+                    className: latestProgress.className,
+                    assignmentTitle: latestProgress.assignmentTitle,
+                    competencyName: latestProgress.competencyName,
+                    status: latestProgress.status,
+                    updated_at: latestProgress.achievedAt || latestProgress.date,
+                    feedback: latestProgress.feedback
+                };
+            }),
+            classesSummary: Object.values(classSummary).map(cls => ({
+                className: cls.className,
+                classId: cls.classId,
+                totalCompetencies: cls.totalCompetencies,
+                not_started: cls.notStarted,
+                in_progress: cls.inProgress,
+                achieved: cls.achieved,
+                mastered: cls.mastered,
+                progressPercentage: cls.totalCompetencies > 0 ? Math.round(((cls.achieved + cls.mastered) / cls.totalCompetencies) * 100) : 0
+            })),
+            competencyDetails: Array.from(competencyMap.entries()).map(([competencyKey, progressArray]) => ({
+                competencyKey,
+                progressHistory: progressArray,
+                currentStatus: progressArray[progressArray.length - 1].status,
+                firstRecorded: progressArray[0].date,
+                lastUpdated: progressArray[progressArray.length - 1].date
+            })),
+            submissions: submissions.map(sub => ({
+                id: sub.id,
+                assignmentTitle: sub.assignment.title,
+                className: sub.assignment.class.name,
+                status: sub.status,
+                submittedAt: sub.submitted_at,
+                reviewedAt: sub.reviewed_at,
+                feedback: sub.feedback,
+                competencyCount: sub.assignment.competencies.length
+            }))
+        };
+
+        res.json({ success: true, data: response });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get class-wide competency progress report
+app.get('/api/reports/class/:classId/progress', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        // Verify teacher owns this class
+        const classData = await prisma.class.findFirst({
+            where: {
+                id: parseInt(classId),
+                teacherId: req.user.userId
+            },
+            include: {
+                students: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                assignments: {
+                    include: {
+                        competencies: {
+                            include: {
+                                progress: {
+                                    where: startDate || endDate ? {
+                                        created_at: {
+                                            ...(startDate && { gte: new Date(startDate) }),
+                                            ...(endDate && { lte: new Date(endDate) })
+                                        }
+                                    } : undefined,
+                                    include: {
+                                        student: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                                email: true
+                                            }
+                                        }
+                                    },
+                                    orderBy: {
+                                        created_at: 'desc'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!classData) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have access'
+            });
+        }
+
+        // Calculate class-wide statistics
+        const studentProgress = {};
+        let totalCompetencies = 0;
+        const competencyStats = {
+            achieved: 0,
+            mastered: 0,
+            inProgress: 0,
+            notStarted: 0
+        };
+
+        // Initialize student progress tracking
+        classData.students.forEach(student => {
+            studentProgress[student.id] = {
+                student,
+                competencies: {},
+                summary: { achieved: 0, mastered: 0, inProgress: 0, notStarted: 0, total: 0 }
+            };
+        });
+
+        // Process each assignment and its competencies
+        classData.assignments.forEach(assignment => {
+            assignment.competencies.forEach(competency => {
+                totalCompetencies++;
+                
+                // Initialize competency status for all students
+                classData.students.forEach(student => {
+                    studentProgress[student.id].competencies[competency.id] = {
+                        competencyId: competency.id,
+                        competencyName: competency.name,
+                        status: 'NOT_STARTED',
+                        lastUpdated: null,
+                        feedback: null
+                    };
+                    studentProgress[student.id].summary.total++;
+                    studentProgress[student.id].summary.notStarted++;
+                    competencyStats.notStarted++;
+                });
+
+                // Update with actual progress data
+                competency.progress.forEach(progress => {
+                    const studentId = progress.studentId;
+                    const currentStatus = studentProgress[studentId].competencies[competency.id].status;
+                    
+                    // Remove from old status count
+                    studentProgress[studentId].summary[currentStatus.toLowerCase().replace('_', '')]--;
+                    competencyStats[currentStatus.toLowerCase().replace('_', '')]--;
+                    
+                    // Update to new status
+                    studentProgress[studentId].competencies[competency.id] = {
+                        competencyId: competency.id,
+                        competencyName: competency.name,
+                        status: progress.status,
+                        lastUpdated: progress.created_at,
+                        feedback: progress.feedback
+                    };
+                    
+                    // Add to new status count
+                    studentProgress[studentId].summary[progress.status.toLowerCase().replace('_', '')]++;
+                    competencyStats[progress.status.toLowerCase().replace('_', '')]++;
+                });
+            });
+        });
+
+        // Generate progress trends
+        const progressTrends = [];
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const days = [];
+            
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                days.push(new Date(d).toISOString().split('T')[0]);
+            }
+            
+            days.forEach(day => {
+                const dayStats = { date: day, achieved: 0, mastered: 0, inProgress: 0, total: 0 };
+                
+                classData.assignments.forEach(assignment => {
+                    assignment.competencies.forEach(competency => {
+                        competency.progress.forEach(progress => {
+                            if (progress.created_at.toISOString().split('T')[0] === day) {
+                                dayStats.total++;
+                                if (progress.status === 'ACHIEVED') dayStats.achieved++;
+                                if (progress.status === 'MASTERED') dayStats.mastered++;
+                                if (progress.status === 'IN_PROGRESS') dayStats.inProgress++;
+                            }
+                        });
+                    });
+                });
+                
+                if (dayStats.total > 0) {
+                    progressTrends.push(dayStats);
+                }
+            });
+        }
+
+        const response = {
+            class: {
+                id: classData.id,
+                name: classData.name,
+                description: classData.description,
+                studentCount: classData.students.length,
+                assignmentCount: classData.assignments.length,
+                totalCompetencies
+            },
+            reportPeriod: {
+                startDate: startDate || null,
+                endDate: endDate || null
+            },
+            summary: {
+                totalStudents: classData.students.length,
+                totalCompetencies: totalCompetencies,
+                totalAssignments: classData.assignments.length,
+                averageProgress: totalCompetencies > 0 ? 
+                    Math.round(((competencyStats.achieved + competencyStats.mastered) / (totalCompetencies * classData.students.length)) * 100) : 0
+            },
+            competencyBreakdown: classData.assignments.map(assignment => ({
+                competencyName: assignment.competencies.map(c => c.name).join(', '),
+                assignmentTitle: assignment.title,
+                not_started: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'NOT_STARTED').length, 0),
+                in_progress: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'IN_PROGRESS').length, 0),
+                achieved: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'ACHIEVED').length, 0),
+                mastered: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'MASTERED').length, 0)
+            })),
+            studentsSummary: Object.values(studentProgress).map(sp => ({
+                studentName: sp.student.name,
+                studentId: sp.student.id,
+                totalCompetencies: sp.summary.total,
+                not_started: sp.summary.notStarted,
+                in_progress: sp.summary.inProgress,
+                achieved: sp.summary.achieved,
+                mastered: sp.summary.mastered,
+                progressPercentage: sp.summary.total > 0 ? 
+                    Math.round(((sp.summary.achieved + sp.summary.mastered) / sp.summary.total) * 100) : 0
+            })),
+            progressTrends,
+            assignments: classData.assignments.map(assignment => ({
+                id: assignment.id,
+                title: assignment.title,
+                competencyCount: assignment.competencies.length,
+                completionStats: assignment.competencies.reduce((stats, comp) => {
+                    comp.progress.forEach(prog => {
+                        stats[prog.status.toLowerCase().replace('_', '')]++;
+                        stats.total++;
+                    });
+                    return stats;
+                }, { achieved: 0, mastered: 0, inProgress: 0, notStarted: 0, total: 0 })
+            }))
+        };
+
+        res.json({ success: true, data: response });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get competency-specific progress report across all students
+app.get('/api/reports/competency/:competencyId/progress', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { competencyId } = req.params;
+
+        // Verify teacher has access to this competency
+        const competency = await prisma.competency.findFirst({
+            where: {
+                id: parseInt(competencyId),
+                assignment: {
+                    class: {
+                        teacherId: req.user.userId
+                    }
+                }
+            },
+            include: {
+                assignment: {
+                    include: {
+                        class: {
+                            include: {
+                                students: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                progress: {
+                    include: {
+                        student: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        created_at: 'asc'
+                    }
+                }
+            }
+        });
+
+        if (!competency) {
+            return res.status(404).json({
+                success: false,
+                message: 'Competency not found or you do not have access'
+            });
+        }
+
+        // Calculate statistics
+        const stats = {
+            totalStudents: competency.assignment.class.students.length,
+            achieved: 0,
+            mastered: 0,
+            inProgress: 0,
+            notStarted: 0
+        };
+
+        const studentProgress = {};
+        
+        // Initialize all students
+        competency.assignment.class.students.forEach(student => {
+            studentProgress[student.id] = {
+                student,
+                status: 'NOT_STARTED',
+                progressHistory: [],
+                firstAttempt: null,
+                lastUpdated: null,
+                feedback: null
+            };
+            stats.notStarted++;
+        });
+
+        // Process progress records
+        competency.progress.forEach(progress => {
+            const studentId = progress.studentId;
+            
+            // Update latest status
+            if (!studentProgress[studentId].lastUpdated || progress.created_at > studentProgress[studentId].lastUpdated) {
+                // Remove from old status count
+                stats[studentProgress[studentId].status.toLowerCase().replace('_', '')]--;
+                
+                // Update to new status
+                studentProgress[studentId].status = progress.status;
+                studentProgress[studentId].lastUpdated = progress.created_at;
+                studentProgress[studentId].feedback = progress.feedback;
+                
+                // Add to new status count
+                stats[progress.status.toLowerCase().replace('_', '')]++;
+            }
+
+            // Track first attempt
+            if (!studentProgress[studentId].firstAttempt || progress.created_at < studentProgress[studentId].firstAttempt) {
+                studentProgress[studentId].firstAttempt = progress.created_at;
+            }
+
+            // Add to history
+            studentProgress[studentId].progressHistory.push({
+                status: progress.status,
+                date: progress.created_at,
+                feedback: progress.feedback,
+                achievedAt: progress.achieved_at
+            });
+        });
+
+        const response = {
+            competency: {
+                id: competency.id,
+                name: competency.name,
+                description: competency.description,
+                assignment: {
+                    id: competency.assignment.id,
+                    title: competency.assignment.title,
+                    class: {
+                        id: competency.assignment.class.id,
+                        name: competency.assignment.class.name
+                    }
+                }
+            },
+            summary: {
+                totalStudents: stats.totalStudents,
+                not_started: stats.notStarted,
+                in_progress: stats.inProgress,
+                achieved: stats.achieved,
+                mastered: stats.mastered,
+                completionRate: stats.totalStudents > 0 ? 
+                    Math.round(((stats.achieved + stats.mastered) / stats.totalStudents) * 100) : 0
+            },
+            studentBreakdown: Object.values(studentProgress).map(sp => ({
+                studentName: sp.student.name,
+                studentId: sp.student.id,
+                status: sp.status,
+                updated_at: sp.lastUpdated,
+                assignmentTitle: competency.assignment.title,
+                className: competency.assignment.class.name,
+                feedback: sp.feedback,
+                firstAttempt: sp.firstAttempt
+            })),
+            assignmentBreakdown: [{
+                assignmentTitle: competency.assignment.title,
+                className: competency.assignment.class.name,
+                totalStudents: stats.totalStudents,
+                not_started: stats.notStarted,
+                in_progress: stats.inProgress,
+                achieved: stats.achieved,
+                mastered: stats.mastered
+            }],
+            progressHistory: Object.values(studentProgress).map(sp => ({
+                studentName: sp.student.name,
+                progressHistory: sp.progressHistory
+            }))
+        };
+
+        res.json({ success: true, data: response });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -1898,3 +2574,472 @@ app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// ===== REPORTING ENDPOINTS =====
+
+// Get comprehensive student progress report
+app.get('/api/reports/student/:studentId/progress', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { studentId } = req.params;
+        const { startDate, endDate, classId } = req.query;
+
+        // Verify teacher has access to this student
+        const studentAccess = await prisma.user.findFirst({
+            where: {
+                id: parseInt(studentId),
+                classes: {
+                    some: {
+                        teacherId: req.user.userId
+                    }
+                }
+            }
+        });
+
+        if (!studentAccess) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to this student'
+            });
+        }
+
+        // Build where clause for filtering
+        let whereClause = {
+            studentId: parseInt(studentId)
+        };
+
+        if (classId) {
+            whereClause.competency = {
+                assignment: {
+                    classId: parseInt(classId)
+                }
+            };
+        } else {
+            whereClause.competency = {
+                assignment: {
+                    class: {
+                        teacherId: req.user.userId
+                    }
+                }
+            };
+        }
+
+        if (startDate || endDate) {
+            whereClause.created_at = {};
+            if (startDate) whereClause.created_at.gte = new Date(startDate);
+            if (endDate) whereClause.created_at.lte = new Date(endDate);
+        }
+
+        // Get all competency progress for the student
+        const progressHistory = await prisma.competencyProgress.findMany({
+            where: whereClause,
+            include: {
+                competency: {
+                    include: {
+                        assignment: {
+                            include: {
+                                class: true
+                            }
+                        }
+                    }
+                },
+                student: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            },
+            orderBy: {
+                created_at: 'asc'
+            }
+        });
+
+        // Get student's submissions for context
+        const submissions = await prisma.submission.findMany({
+            where: {
+                studentId: parseInt(studentId),
+                assignment: {
+                    class: classId ? {
+                        id: parseInt(classId)
+                    } : {
+                        teacherId: req.user.userId
+                    }
+                }
+            },
+            include: {
+                assignment: {
+                    include: {
+                        class: true,
+                        competencies: true
+                    }
+                }
+            },
+            orderBy: {
+                submitted_at: 'asc'
+            }
+        });
+
+        // Calculate progress statistics over time
+        const progressOverTime = [];
+        const competencyMap = new Map();
+        
+        progressHistory.forEach(progress => {
+            const date = progress.created_at.toISOString().split('T')[0];
+            const competencyKey = `${progress.competency.assignment.class.name} - ${progress.competency.assignment.title} - ${progress.competency.name}`;
+            
+            if (!competencyMap.has(competencyKey)) {
+                competencyMap.set(competencyKey, []);
+            }
+            
+            competencyMap.get(competencyKey).push({
+                date,
+                status: progress.status,
+                feedback: progress.feedback,
+                achievedAt: progress.achieved_at,
+                className: progress.competency.assignment.class.name,
+                assignmentTitle: progress.competency.assignment.title,
+                competencyName: progress.competency.name,
+                competencyDescription: progress.competency.description
+            });
+        });
+
+        // Calculate summary statistics
+        const totalCompetencies = competencyMap.size;
+        let achievedCount = 0;
+        let masteredCount = 0;
+        let inProgressCount = 0;
+        let notStartedCount = 0;
+
+        competencyMap.forEach(progressArray => {
+            const latestProgress = progressArray[progressArray.length - 1];
+            switch (latestProgress.status) {
+                case 'ACHIEVED': achievedCount++; break;
+                case 'MASTERED': masteredCount++; break;
+                case 'IN_PROGRESS': inProgressCount++; break;
+                default: notStartedCount++; break;
+            }
+        });
+
+        // Generate timeline data for charts
+        const timelineData = [];
+        const dates = [...new Set(progressHistory.map(p => p.created_at.toISOString().split('T')[0]))].sort();
+        
+        dates.forEach(date => {
+            const dayProgress = progressHistory.filter(p => p.created_at.toISOString().split('T')[0] === date);
+            const statusCounts = {
+                date,
+                achieved: dayProgress.filter(p => p.status === 'ACHIEVED').length,
+                mastered: dayProgress.filter(p => p.status === 'MASTERED').length,
+                inProgress: dayProgress.filter(p => p.status === 'IN_PROGRESS').length,
+                total: dayProgress.length
+            };
+            timelineData.push(statusCounts);
+        });
+
+        // Class breakdown
+        const classSummary = {};
+        progressHistory.forEach(progress => {
+            const className = progress.competency.assignment.class.name;
+            if (!classSummary[className]) {
+                classSummary[className] = {
+                    className,
+                    classId: progress.competency.assignment.class.id,
+                    totalCompetencies: 0,
+                    achieved: 0,
+                    mastered: 0,
+                    inProgress: 0,
+                    notStarted: 0
+                };
+            }
+            classSummary[className].totalCompetencies++;
+            
+            switch (progress.status) {
+                case 'ACHIEVED': classSummary[className].achieved++; break;
+                case 'MASTERED': classSummary[className].mastered++; break;
+                case 'IN_PROGRESS': classSummary[className].inProgress++; break;
+                default: classSummary[className].notStarted++; break;
+            }
+        });
+
+        const response = {
+            student: progressHistory[0]?.student || { id: parseInt(studentId), name: 'Unknown', email: 'Unknown' },
+            reportPeriod: {
+                startDate: startDate || progressHistory[0]?.created_at,
+                endDate: endDate || progressHistory[progressHistory.length - 1]?.created_at,
+                classFilter: classId || null
+            },
+            summary: {
+                totalCompetencies,
+                achieved: achievedCount,
+                mastered: masteredCount,
+                in_progress: inProgressCount,
+                not_started: notStartedCount,
+                completionRate: totalCompetencies > 0 ? Math.round(((achievedCount + masteredCount) / totalCompetencies) * 100) : 0
+            },
+            timeline: Array.from(competencyMap.entries()).map(([competencyKey, progressArray]) => {
+                const parts = competencyKey.split(' - ');
+                const latestProgress = progressArray[progressArray.length - 1];
+                return {
+                    className: latestProgress.className,
+                    assignmentTitle: latestProgress.assignmentTitle,
+                    competencyName: latestProgress.competencyName,
+                    status: latestProgress.status,
+                    updated_at: latestProgress.achievedAt || latestProgress.date,
+                    feedback: latestProgress.feedback
+                };
+            }),
+            classesSummary: Object.values(classSummary).map(cls => ({
+                className: cls.className,
+                classId: cls.classId,
+                totalCompetencies: cls.totalCompetencies,
+                not_started: cls.notStarted,
+                in_progress: cls.inProgress,
+                achieved: cls.achieved,
+                mastered: cls.mastered,
+                progressPercentage: cls.totalCompetencies > 0 ? Math.round(((cls.achieved + cls.mastered) / cls.totalCompetencies) * 100) : 0
+            })),
+            competencyDetails: Array.from(competencyMap.entries()).map(([competencyKey, progressArray]) => ({
+                competencyKey,
+                progressHistory: progressArray,
+                currentStatus: progressArray[progressArray.length - 1].status,
+                firstRecorded: progressArray[0].date,
+                lastUpdated: progressArray[progressArray.length - 1].date
+            })),
+            submissions: submissions.map(sub => ({
+                id: sub.id,
+                assignmentTitle: sub.assignment.title,
+                className: sub.assignment.class.name,
+                status: sub.status,
+                submittedAt: sub.submitted_at,
+                reviewedAt: sub.reviewed_at,
+                feedback: sub.feedback,
+                competencyCount: sub.assignment.competencies.length
+            }))
+        };
+
+        res.json({ success: true, data: response });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get class-wide competency progress report
+app.get('/api/reports/class/:classId/progress', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { classId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        // Verify teacher owns this class
+        const classData = await prisma.class.findFirst({
+            where: {
+                id: parseInt(classId),
+                teacherId: req.user.userId
+            },
+            include: {
+                students: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                assignments: {
+                    include: {
+                        competencies: {
+                            include: {
+                                progress: {
+                                    where: startDate || endDate ? {
+                                        created_at: {
+                                            ...(startDate && { gte: new Date(startDate) }),
+                                            ...(endDate && { lte: new Date(endDate) })
+                                        }
+                                    } : undefined,
+                                    include: {
+                                        student: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                                email: true
+                                            }
+                                        }
+                                    },
+                                    orderBy: {
+                                        created_at: 'desc'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!classData) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have access'
+            });
+        }
+
+        // Calculate class-wide statistics
+        const studentProgress = {};
+        let totalCompetencies = 0;
+        const competencyStats = {
+            achieved: 0,
+            mastered: 0,
+            inProgress: 0,
+            notStarted: 0
+        };
+
+        // Initialize student progress tracking
+        classData.students.forEach(student => {
+            studentProgress[student.id] = {
+                student,
+                competencies: {},
+                summary: { achieved: 0, mastered: 0, inProgress: 0, notStarted: 0, total: 0 }
+            };
+        });
+
+        // Process each assignment and its competencies
+        classData.assignments.forEach(assignment => {
+            assignment.competencies.forEach(competency => {
+                totalCompetencies++;
+                
+                // Initialize competency status for all students
+                classData.students.forEach(student => {
+                    studentProgress[student.id].competencies[competency.id] = {
+                        competencyId: competency.id,
+                        competencyName: competency.name,
+                        status: 'NOT_STARTED',
+                        lastUpdated: null,
+                        feedback: null
+                    };
+                    studentProgress[student.id].summary.total++;
+                    studentProgress[student.id].summary.notStarted++;
+                    competencyStats.notStarted++;
+                });
+
+                // Update with actual progress data
+                competency.progress.forEach(progress => {
+                    const studentId = progress.studentId;
+                    const currentStatus = studentProgress[studentId].competencies[competency.id].status;
+                    
+                    // Remove from old status count
+                    studentProgress[studentId].summary[currentStatus.toLowerCase().replace('_', '')]--;
+                    competencyStats[currentStatus.toLowerCase().replace('_', '')]--;
+                    
+                    // Update to new status
+                    studentProgress[studentId].competencies[competency.id] = {
+                        competencyId: competency.id,
+                        competencyName: competency.name,
+                        status: progress.status,
+                        lastUpdated: progress.created_at,
+                        feedback: progress.feedback
+                    };
+                    
+                    // Add to new status count
+                    studentProgress[studentId].summary[progress.status.toLowerCase().replace('_', '')]++;
+                    competencyStats[progress.status.toLowerCase().replace('_', '')]++;
+                });
+            });
+        });
+
+        // Generate progress trends
+        const progressTrends = [];
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const days = [];
+            
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                days.push(new Date(d).toISOString().split('T')[0]);
+            }
+            
+            days.forEach(day => {
+                const dayStats = { date: day, achieved: 0, mastered: 0, inProgress: 0, total: 0 };
+                
+                classData.assignments.forEach(assignment => {
+                    assignment.competencies.forEach(competency => {
+                        competency.progress.forEach(progress => {
+                            if (progress.created_at.toISOString().split('T')[0] === day) {
+                                dayStats.total++;
+                                if (progress.status === 'ACHIEVED') dayStats.achieved++;
+                                if (progress.status === 'MASTERED') dayStats.mastered++;
+                                if (progress.status === 'IN_PROGRESS') dayStats.inProgress++;
+                            }
+                        });
+                    });
+                });
+                
+                if (dayStats.total > 0) {
+                    progressTrends.push(dayStats);
+                }
+            });
+        }
+
+        const response = {
+            class: {
+                id: classData.id,
+                name: classData.name,
+                description: classData.description,
+                studentCount: classData.students.length,
+                assignmentCount: classData.assignments.length,
+                totalCompetencies
+            },
+            reportPeriod: {
+                startDate: startDate || null,
+                endDate: endDate || null
+            },
+            summary: {
+                totalStudents: classData.students.length,
+                totalCompetencies: totalCompetencies,
+                totalAssignments: classData.assignments.length,
+                averageProgress: totalCompetencies > 0 ? 
+                    Math.round(((competencyStats.achieved + competencyStats.mastered) / (totalCompetencies * classData.students.length)) * 100) : 0
+            },
+            competencyBreakdown: classData.assignments.map(assignment => ({
+                competencyName: assignment.competencies.map(c => c.name).join(', '),
+                assignmentTitle: assignment.title,
+                not_started: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'NOT_STARTED').length, 0),
+                in_progress: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'IN_PROGRESS').length, 0),
+                achieved: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'ACHIEVED').length, 0),
+                mastered: assignment.competencies.reduce((sum, comp) => 
+                    sum + comp.progress.filter(p => p.status === 'MASTERED').length, 0)
+            })),
+            studentsSummary: Object.values(studentProgress).map(sp => ({
+                studentName: sp.student.name,
+                studentId: sp.student.id,
+                totalCompetencies: sp.summary.total,
+                not_started: sp.summary.notStarted,
+                in_progress: sp.summary.inProgress,
+                achieved: sp.summary.achieved,
+                mastered: sp.summary.mastered,
+                progressPercentage: sp.summary.total > 0 ? 
+                    Math.round(((sp.summary.achieved + sp.summary.mastered) / sp.summary.total) * 100) : 0
+            })),
+            progressTrends,
+            assignments: classData.assignments.map(assignment => ({
+                id: assignment.id,
+                title: assignment.title,
+                competencyCount: assignment.competencies.length,
+                completionStats: assignment.competencies.reduce((stats, comp) => {
+                    comp.progress.forEach(prog => {
+                        stats[prog.status.toLowerCase().replace('_', '')]++;
+                        stats.total++;
+                    });
+                    return stats;
+                }, { achieved: 0, mastered: 0, inProgress: 0, notStarted: 0, total: 0 })
+            }))
+        };
+
+        res.json({ success: true, data: response });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- END REPORTING ENDPOINTS ---

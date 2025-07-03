@@ -98,14 +98,25 @@ function TeacherDashboard() {
 
             <div className="mt-10 bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
-                <div className="flex space-x-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                      <Link 
                         to="/classes" 
-                        className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded"
+                        className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
                      >
                         Manage Classes
                      </Link>
-                     {/* Add more quick actions as needed */}
+                     <Link 
+                        to="/cohorts" 
+                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                     >
+                        Manage Cohorts
+                     </Link>
+                     <Link 
+                        to="/reports" 
+                        className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                     >
+                        View Reports
+                     </Link>
                 </div>
             </div>
         </div>
