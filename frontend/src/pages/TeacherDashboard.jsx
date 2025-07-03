@@ -98,7 +98,7 @@ function TeacherDashboard() {
 
             <div className="mt-10 bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                      <Link 
                         to="/classes" 
                         className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
@@ -116,6 +116,12 @@ function TeacherDashboard() {
                         className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
                      >
                         View Reports
+                     </Link>
+                     <Link 
+                        to="/mastery-transcript" 
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-colors"
+                     >
+                        Mastery Transcripts
                      </Link>
                 </div>
             </div>

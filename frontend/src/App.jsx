@@ -15,6 +15,7 @@ import StudentClassPage from './pages/StudentClassPage';
 import AssignmentSubmissionsReview from './pages/AssignmentSubmissionsReview';
 import StudentProgressPage from './pages/StudentProgressPage';
 import Reports from './pages/Reports';
+import MasteryTranscript from './pages/MasteryTranscript';
 
 const AuthContext = createContext(null);
 
@@ -103,6 +104,8 @@ function App() {
                              <Route path="/classes/:classId/students" element={<ProtectedRoute role="TEACHER"><StudentManagement /></ProtectedRoute>} />
                              <Route path="/cohorts" element={<ProtectedRoute role="TEACHER"><CohortManagement /></ProtectedRoute>} />
                              <Route path="/reports" element={<ProtectedRoute role="TEACHER"><Reports /></ProtectedRoute>} />
+                             <Route path="/mastery-transcript" element={<ProtectedRoute><MasteryTranscript /></ProtectedRoute>} />
+                             <Route path="/mastery-transcript/:studentId" element={<ProtectedRoute role="TEACHER"><MasteryTranscript /></ProtectedRoute>} />
                              <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
                              <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
                              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -129,11 +132,13 @@ function Navbar() {
             { path: '/classes', name: 'Classes' },
             { path: '/cohorts', name: 'Cohorts' },
             { path: '/reports', name: 'Reports' },
+            { path: '/mastery-transcript', name: 'Transcripts' },
             { path: '/trash', name: 'Trash' },
         ],
         STUDENT: [
             { path: '/', name: 'Dashboard' },
             { path: '/progress', name: 'My Progress' },
+            { path: '/mastery-transcript', name: 'My Transcript' },
         ],
         ADMIN: [
             { path: '/', name: 'User Management' },
