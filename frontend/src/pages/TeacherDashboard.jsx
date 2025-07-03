@@ -48,14 +48,14 @@ function TeacherDashboard() {
         <div className="p-8 flex justify-center items-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading dashboard...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div className="p-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
                 {error}
             </div>
         </div>
@@ -63,41 +63,41 @@ function TeacherDashboard() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">Teacher Dashboard</h1>
-            <p className="text-xl text-gray-600 mb-8">Welcome back, {user.name}!</p>
+            <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Teacher Dashboard</h1>
+            <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">Welcome back, {user.name}!</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center">
                     <div className="bg-indigo-500 text-white p-4 rounded-full">
                         <Users className="h-8 w-8" />
                     </div>
                     <div className="ml-4">
-                        <p className="text-gray-500">Total Students</p>
-                        <p className="text-2xl font-bold">{stats.students}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Total Students</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.students}</p>
                     </div>
                 </div>
-                 <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
+                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center">
                     <div className="bg-green-500 text-white p-4 rounded-full">
                         <Building className="h-8 w-8" />
                     </div>
                     <div className="ml-4">
-                        <p className="text-gray-500">Active Classes</p>
-                        <p className="text-2xl font-bold">{stats.classes}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Active Classes</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.classes}</p>
                     </div>
                 </div>
-                 <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
+                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center">
                     <div className="bg-yellow-500 text-white p-4 rounded-full">
                         <Award className="h-8 w-8" />
                     </div>
                     <div className="ml-4">
-                        <p className="text-gray-500">Total Competencies</p>
-                        <p className="text-2xl font-bold">{stats.competencies}</p>
+                        <p className="text-gray-500 dark:text-gray-400">Total Competencies</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.competencies}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="mt-10 bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
+            <div className="mt-10 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                      <Link 
                         to="/classes" 

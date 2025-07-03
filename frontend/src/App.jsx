@@ -12,7 +12,9 @@ import {
     GraduationCap,
     UserCog,
     ChevronLeft,
-    LogOut
+    LogOut,
+    Moon,
+    Sun
 } from 'lucide-react';
 import LoginPage from './pages/LoginPage';
 import StudentDashboard from './pages/StudentDashboard';
@@ -31,6 +33,7 @@ import Reports from './pages/Reports';
 import MasteryTranscript from './pages/MasteryTranscript';
 
 const AuthContext = createContext(null);
+const ThemeContext = createContext(null);
 
 const apiClient = axios.create({
     baseURL: 'http://localhost:5000/api',
@@ -84,6 +87,25 @@ apiClient.interceptors.response.use(
 
 function App() {
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const saved = localStorage.getItem('darkMode');
+        return saved ? JSON.parse(saved) : false;
+    });
+
+    const toggleTheme = () => {
+        const newMode = !isDarkMode;
+        setIsDarkMode(newMode);
+        localStorage.setItem('darkMode', JSON.stringify(newMode));
+    };
+
+    // Apply dark mode class to document
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [isDarkMode]);
     
     const login = (userData, token) => {
         localStorage.setItem('user', JSON.stringify(userData));
@@ -99,12 +121,13 @@ function App() {
 
     return (
         <AuthContext.Provider value={{ user, login, logout, apiClient }}>
-            <Router>
-                <div className="min-h-screen flex">
-                    {user && <Sidebar />}
-                    <div className="flex-1 flex flex-col">
-                        <main className="flex-grow bg-gray-50">
-                            <Routes>
+            <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+                <Router>
+                    <div className={`min-h-screen flex ${isDarkMode ? 'dark' : ''}`}>
+                        {user && <Sidebar />}
+                        <div className="flex-1 flex flex-col">
+                            <main className="flex-grow bg-gray-50 dark:bg-gray-900">
+                                <Routes>
                                 <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
                                 <Route path="/" element={
                                     <ProtectedRoute>
@@ -133,14 +156,22 @@ function App() {
                     </div>
                 </div>
             </Router>
-        </AuthContext.Provider>
-    );
+        </ThemeContext.Provider>
+    </AuthContext.Provider>
+);
 }
 
 function Sidebar() {
     const { user, logout } = useAuth();
+    const { isDarkMode, toggleTheme } = useTheme();
     const location = useLocation();
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    const handleLogout = () => {
+        if (window.confirm('Are you sure you want to logout?')) {
+            logout();
+        }
+    };
 
     const navLinks = {
         TEACHER: [
@@ -169,42 +200,42 @@ function Sidebar() {
     };
 
     return (
-        <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg transition-all duration-300 ease-in-out flex flex-col`}>
+        <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 ease-in-out flex flex-col`}>
             {/* Header with Logo and Toggle */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 {!isCollapsed && (
                     <div className="flex items-center">
                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${roleColors[user.role]} flex items-center justify-center mr-3`}>
                             <span className="text-white font-bold text-sm">CB</span>
                         </div>
-                        <span className="font-bold text-xl text-gray-800">CBLMS</span>
+                        <span className="font-bold text-xl text-gray-800 dark:text-white">CBLMS</span>
                     </div>
                 )}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                     <ChevronLeft 
-                        className={`w-5 h-5 text-gray-600 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
+                        className={`w-5 h-5 text-gray-600 dark:text-gray-300 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
                     />
                 </button>
             </div>
 
             {/* User Profile Section */}
-            <div className="p-4 border-b border-gray-200">
-                <Link to="/profile" className={`flex items-center hover:bg-gray-50 rounded-lg p-2 transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <Link to="/profile" className={`flex items-center hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
                     <img 
                         src={user.photo || 'https://i.pravatar.cc/150'} 
                         alt="profile" 
-                        className={`${isCollapsed ? 'w-8 h-8' : 'w-10 h-10'} rounded-full border-2 border-gray-200`}
+                        className={`${isCollapsed ? 'w-8 h-8' : 'w-10 h-10'} rounded-full border-2 border-gray-200 dark:border-gray-600`}
                         onError={(e) => {
                             e.target.src = 'https://i.pravatar.cc/150';
                         }}
                     />
                     {!isCollapsed && (
                         <div className="ml-3 flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                            <p className="text-xs text-gray-500 capitalize">{user.role.toLowerCase()}</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role.toLowerCase()}</p>
                         </div>
                     )}
                 </Link>
@@ -222,7 +253,7 @@ function Sidebar() {
                             className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
                                 isActive 
                                     ? `bg-gradient-to-r ${roleColors[user.role]} text-white shadow-md` 
-                                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                             } ${isCollapsed ? 'justify-center' : ''}`}
                             title={isCollapsed ? link.name : ''}
                         >
@@ -238,11 +269,31 @@ function Sidebar() {
                 })}
             </nav>
 
-            {/* Logout Button */}
-            <div className="p-4 border-t border-gray-200">
+            {/* Theme Toggle */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 <button 
-                    onClick={logout} 
-                    className={`flex items-center w-full px-3 py-3 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors ${
+                    onClick={toggleTheme}
+                    className={`flex items-center w-full px-3 py-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors ${
+                        isCollapsed ? 'justify-center' : ''
+                    }`}
+                    title={isCollapsed ? (isDarkMode ? 'Light Mode' : 'Dark Mode') : ''}
+                >
+                    {isDarkMode ? (
+                        <Sun className={`w-5 h-5 ${!isCollapsed ? 'mr-3' : ''}`} />
+                    ) : (
+                        <Moon className={`w-5 h-5 ${!isCollapsed ? 'mr-3' : ''}`} />
+                    )}
+                    {!isCollapsed && (
+                        <span className="font-medium">{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                    )}
+                </button>
+            </div>
+
+            {/* Logout Button */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button 
+                    onClick={handleLogout} 
+                    className={`flex items-center w-full px-3 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 transition-colors ${
                         isCollapsed ? 'justify-center' : ''
                     }`}
                     title={isCollapsed ? 'Logout' : ''}
@@ -258,12 +309,12 @@ function Sidebar() {
 // Header component for pages
 function PageHeader({ title, subtitle, actions }) {
     return (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="px-6 py-4">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-                        {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
+                        {subtitle && <p className="text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>}
                     </div>
                     {actions && <div className="flex space-x-3">{actions}</div>}
                 </div>
@@ -284,5 +335,6 @@ const ProtectedRoute = ({ children, role }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+export const useTheme = () => useContext(ThemeContext);
 export { PageHeader };
 export default App;

@@ -58,14 +58,14 @@ function StudentDashboard() {
         <div className="p-8 flex justify-center items-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading dashboard...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div className="p-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
                 {error}
             </div>
         </div>
@@ -74,7 +74,7 @@ function StudentDashboard() {
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold">Welcome, {user.name}!</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome, {user.name}!</h1>
                 <div className="flex gap-3">
                     <Link
                         to="/mastery-transcript"
@@ -94,10 +94,10 @@ function StudentDashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="md:col-span-2">
-                    <h2 className="text-2xl font-semibold mb-4">My Classes</h2>
+                    <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">My Classes</h2>
                     {classes.length === 0 ? (
-                        <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                            <p className="text-gray-500">You are not enrolled in any classes yet.</p>
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md text-center">
+                            <p className="text-gray-500 dark:text-gray-400">You are not enrolled in any classes yet.</p>
                         </div>
                     ) : (
                         <div className="grid gap-4">
@@ -105,19 +105,19 @@ function StudentDashboard() {
                                 <Link
                                     key={cls.id}
                                     to={`/student/classes/${cls.id}`}
-                                    className="block bg-white p-6 rounded-lg shadow-md hover:bg-indigo-50 transition border border-indigo-100"
+                                    className="block bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:bg-indigo-50 dark:hover:bg-gray-700 transition border border-indigo-100 dark:border-gray-600"
                                 >
-                                    <h3 className="text-xl font-bold text-indigo-700">{cls.name}</h3>
-                                    <div className="text-gray-600 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: cls.description || '<p class="text-gray-500 italic">No description</p>' }} />
-                                    <p className="text-sm text-gray-500 mt-2">Teacher: {cls.teacher?.name || 'Unknown'}</p>
+                                    <h3 className="text-xl font-bold text-indigo-700 dark:text-indigo-400">{cls.name}</h3>
+                                    <div className="text-gray-600 dark:text-gray-400 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: cls.description || '<p class="text-gray-500 dark:text-gray-400 italic">No description</p>' }} />
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Teacher: {cls.teacher?.name || 'Unknown'}</p>
                                 </Link>
                             ))}
                         </div>
                     )}
                 </div>
                 <div>
-                    <h2 className="text-2xl font-semibold mb-4">Competency Overview</h2>
-                    <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Competency Overview</h2>
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         {competencyData && (
                             <Bar 
                                 data={competencyData} 

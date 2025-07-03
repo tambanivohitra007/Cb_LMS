@@ -73,14 +73,14 @@ function Trash() {
         <div className="p-8 flex justify-center items-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading trash...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading trash...</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div className="p-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded">
                 {error}
             </div>
         </div>
@@ -88,18 +88,18 @@ function Trash() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">Trash</h1>
+            <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Trash</h1>
             
             {/* Tab Navigation */}
-            <div className="bg-white rounded-lg shadow-md mb-6">
-                <div className="border-b border-gray-200">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6">
+                <div className="border-b border-gray-200 dark:border-gray-700">
                     <nav className="-mb-px flex">
                         <button
                             onClick={() => setActiveTab('classes')}
                             className={`px-6 py-3 border-b-2 font-medium text-sm ${
                                 activeTab === 'classes'
-                                    ? 'border-indigo-500 text-indigo-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                             }`}
                         >
                             Deleted Classes ({trashItems.deletedClasses?.length || 0})
@@ -108,8 +108,8 @@ function Trash() {
                             onClick={() => setActiveTab('assignments')}
                             className={`px-6 py-3 border-b-2 font-medium text-sm ${
                                 activeTab === 'assignments'
-                                    ? 'border-indigo-500 text-indigo-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                             }`}
                         >
                             Deleted Assignments ({trashItems.deletedAssignments?.length || 0})

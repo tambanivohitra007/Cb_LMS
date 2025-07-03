@@ -347,8 +347,8 @@ const MasteryTranscript = () => {
                 <div className="flex justify-center items-center h-64">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <div className="ml-4">
-                        <p className="text-gray-600">Loading mastery transcript...</p>
-                        <p className="text-sm text-gray-500">This may take a moment to load your data.</p>
+                        <p className="text-gray-600 dark:text-gray-400">Loading mastery transcript...</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500">This may take a moment to load your data.</p>
                     </div>
                 </div>
             </div>
@@ -358,9 +358,9 @@ const MasteryTranscript = () => {
     if (!user) {
         return (
             <div className="container mx-auto px-4 py-8">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-6 text-center">
-                    <h2 className="text-xl font-semibold text-yellow-800 mb-2">Authentication Required</h2>
-                    <p className="text-yellow-700 mb-4">Please log in to view your mastery transcript.</p>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-6 text-center">
+                    <h2 className="text-xl font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Authentication Required</h2>
+                    <p className="text-yellow-700 dark:text-yellow-400 mb-4">Please log in to view your mastery transcript.</p>
                     <a 
                         href="/login" 
                         className="inline-block bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
@@ -375,20 +375,20 @@ const MasteryTranscript = () => {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">Mastery Transcript</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Mastery Transcript</h1>
                 
                 {/* Controls */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {user?.role === 'TEACHER' && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Select Student
                                 </label>
                                 <select
                                     value={selectedStudent}
                                     onChange={(e) => handleStudentChange(e.target.value)}
-                                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 >
                                     <option value="">Choose student...</option>
                                     {students.map(student => (
@@ -401,13 +401,13 @@ const MasteryTranscript = () => {
                         )}
                         
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 View Mode
                             </label>
                             <select
                                 value={viewMode}
                                 onChange={(e) => setViewMode(e.target.value)}
-                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             >
                                 <option value="class">By Class</option>
                                 <option value="cohort">By Cohort</option>
@@ -421,9 +421,9 @@ const MasteryTranscript = () => {
                                     type="checkbox"
                                     checked={includeInProgress}
                                     onChange={(e) => handleIncludeInProgressChange(e.target.checked)}
-                                    className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                    className="rounded border-gray-300 dark:border-gray-600 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
                                 />
-                                <span className="ml-2 text-sm text-gray-600">Include In Progress</span>
+                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Include In Progress</span>
                             </label>
                         </div>
                         
@@ -440,8 +440,8 @@ const MasteryTranscript = () => {
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-                        <p className="text-red-800">{error}</p>
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
+                        <p className="text-red-800 dark:text-red-400">{error}</p>
                     </div>
                 )}
             </div>
@@ -449,32 +449,32 @@ const MasteryTranscript = () => {
             {transcriptData && (
                 <>
                     {/* Student Info & Summary */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900 mb-2">{transcriptData.student.name}</h2>
-                                <p className="text-gray-600 mb-1">{transcriptData.student.email}</p>
-                                <p className="text-sm text-gray-500">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{transcriptData.student.name}</h2>
+                                <p className="text-gray-600 dark:text-gray-400 mb-1">{transcriptData.student.email}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-500">
                                     Transcript generated: {format(new Date(transcriptData.student.transcriptGeneratedAt), 'MMM dd, yyyy HH:mm')}
                                 </p>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="text-center p-4 bg-green-50 rounded-lg">
-                                    <div className="text-2xl font-bold text-green-600">{transcriptData.summary.totalCompetencies}</div>
-                                    <div className="text-sm text-green-800">Total Competencies</div>
+                                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{transcriptData.summary.totalCompetencies}</div>
+                                    <div className="text-sm text-green-800 dark:text-green-300">Total Competencies</div>
                                 </div>
-                                <div className="text-center p-4 bg-purple-50 rounded-lg">
-                                    <div className="text-2xl font-bold text-purple-600">{transcriptData.summary.mastered}</div>
-                                    <div className="text-sm text-purple-800">Mastered</div>
+                                <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{transcriptData.summary.mastered}</div>
+                                    <div className="text-sm text-purple-800 dark:text-purple-300">Mastered</div>
                                 </div>
-                                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                    <div className="text-2xl font-bold text-blue-600">{transcriptData.summary.completionRate}%</div>
-                                    <div className="text-sm text-blue-800">Completion Rate</div>
+                                <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{transcriptData.summary.completionRate}%</div>
+                                    <div className="text-sm text-blue-800 dark:text-blue-300">Completion Rate</div>
                                 </div>
-                                <div className="text-center p-4 bg-indigo-50 rounded-lg">
-                                    <div className="text-2xl font-bold text-indigo-600">{transcriptData.summary.masteryRate}%</div>
-                                    <div className="text-sm text-indigo-800">Mastery Rate</div>
+                                <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                                    <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{transcriptData.summary.masteryRate}%</div>
+                                    <div className="text-sm text-indigo-800 dark:text-indigo-300">Mastery Rate</div>
                                 </div>
                             </div>
                         </div>
