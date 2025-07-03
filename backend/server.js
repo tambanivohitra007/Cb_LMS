@@ -50,7 +50,14 @@ const userSchema = Joi.object({
     name: Joi.string().min(1).max(100).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
-    role: Joi.string().valid('STUDENT', 'TEACHER').required()
+    role: Joi.string().valid('STUDENT', 'TEACHER', 'ADMIN').required()
+});
+
+const userUpdateSchema = Joi.object({
+    name: Joi.string().min(1).max(100).required(),
+    email: Joi.string().email().required(),
+    role: Joi.string().valid('STUDENT', 'TEACHER', 'ADMIN').required(),
+    password: Joi.string().min(6).optional() // Optional for updates
 });
 
 const classSchema = Joi.object({
@@ -228,8 +235,8 @@ app.post('/api/auth/login', authLimiter, validateRequest(loginSchema), async (re
     }
 });
 
-// --- USER ROUTES (Teacher only) ---
-app.get('/api/users', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+// --- USER ROUTES (Admin only) ---
+app.get('/api/users', authMiddleware, roleMiddleware(['ADMIN']), async (req, res, next) => {
     try {
         const users = await prisma.user.findMany({
             where: { deleted_at: null },
@@ -249,7 +256,7 @@ app.get('/api/users', authMiddleware, roleMiddleware(['TEACHER']), async (req, r
     }
 });
 
-app.post('/api/users', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(userSchema), async (req, res, next) => {
+app.post('/api/users', authMiddleware, roleMiddleware(['ADMIN']), validateRequest(userSchema), async (req, res, next) => {
     try {
         const { name, email, password, role } = req.body;
         
@@ -284,6 +291,127 @@ app.post('/api/users', authMiddleware, roleMiddleware(['TEACHER']), validateRequ
         });
         
         res.status(201).json({ success: true, data: newUser });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Update a user
+app.put('/api/users/:id', authMiddleware, roleMiddleware(['ADMIN']), validateRequest(userUpdateSchema), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { name, email, role, password } = req.body;
+        const userId = parseInt(id);
+        
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID'
+            });
+        }
+
+        // Check if user exists
+        const existingUser = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!existingUser || existingUser.deleted_at) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Check if email is already taken by another user
+        const emailExists = await prisma.user.findFirst({
+            where: { 
+                email: email.toLowerCase(),
+                id: { not: userId },
+                deleted_at: null
+            }
+        });
+
+        if (emailExists) {
+            return res.status(409).json({
+                success: false,
+                message: 'Email is already taken by another user'
+            });
+        }
+
+        // Prepare update data
+        const updateData = {
+            name,
+            email: email.toLowerCase(),
+            role
+        };
+
+        // Only update password if provided
+        if (password) {
+            updateData.password = await bcrypt.hash(password, 12);
+        }
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                photo: true,
+                created_at: true,
+                updated_at: true
+            }
+        });
+
+        res.json({ success: true, data: updatedUser });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Soft delete a user
+app.delete('/api/users/:id', authMiddleware, roleMiddleware(['ADMIN']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = parseInt(id);
+        
+        if (isNaN(userId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID'
+            });
+        }
+
+        // Prevent self-deletion
+        if (userId === req.user.userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot delete your own account'
+            });
+        }
+
+        // Check if user exists
+        const existingUser = await prisma.user.findFirst({
+            where: { 
+                id: userId,
+                deleted_at: null
+            }
+        });
+
+        if (!existingUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { deleted_at: new Date() }
+        });
+
+        res.json({ success: true, message: 'User deleted successfully' });
     } catch (error) {
         next(error);
     }
@@ -943,3 +1071,5 @@ app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+   
+ 

@@ -14,6 +14,17 @@ async function main() {
     await prisma.user.deleteMany();
 
     // --- Create Users ---
+    const adminPassword = await bcrypt.hash('password', 10);
+    const admin = await prisma.user.create({
+        data: {
+            email: 'admin@demo.com',
+            name: 'System Administrator',
+            password: adminPassword,
+            role: 'ADMIN',
+            photo: 'https://i.pravatar.cc/150?u=admin@demo.com'
+        },
+    });
+
     const teacherPassword = await bcrypt.hash('password', 10);
     const teacher = await prisma.user.create({
         data: {
@@ -21,7 +32,7 @@ async function main() {
             name: 'Dr. Ada Lovelace',
             password: teacherPassword,
             role: 'TEACHER',
-            photo: '[https://i.pravatar.cc/150?u=teacher@demo.com](https://i.pravatar.cc/150?u=teacher@demo.com)'
+            photo: 'https://i.pravatar.cc/150?u=teacher@demo.com'
         },
     });
 
@@ -32,11 +43,11 @@ async function main() {
             name: 'Alan Turing',
             password: studentPassword,
             role: 'STUDENT',
-            photo: '[https://i.pravatar.cc/150?u=student@demo.com](https://i.pravatar.cc/150?u=student@demo.com)'
+            photo: 'https://i.pravatar.cc/150?u=student@demo.com'
         },
     });
     
-    console.log('Created users:', { teacher, student });
+    console.log('Created users:', { admin, teacher, student });
 
     // --- Create a Class ---
     const computerScienceClass = await prisma.class.create({

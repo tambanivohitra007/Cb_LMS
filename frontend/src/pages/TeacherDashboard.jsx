@@ -12,25 +12,24 @@ function TeacherDashboard() {
         const fetchDashboardData = async () => {
             try {
                 setError('');
-                // In a real app, you'd have dedicated API endpoints for these stats.
-                // Here, we'll just get the count from the full lists.
-                const [usersRes, classesRes] = await Promise.all([
-                    apiClient.get('/users'),
-                    apiClient.get('/classes')
-                ]);
-                
-                const users = usersRes.data || [];
+                // Get classes data which includes students and assignments info
+                const classesRes = await apiClient.get('/classes');
                 const classes = classesRes.data || [];
                 
-                const studentCount = users.filter(u => u.role === 'STUDENT').length;
-                const classCount = classes.length;
+                // Calculate statistics from classes data
+                const uniqueStudents = new Set();
                 const competencyCount = classes.reduce((acc, cls) => {
-                    return acc + (cls.assignments || []).reduce((aAcc, assign) => aAcc + (assign.competencies || []).length, 0);
+                    // Count unique students across all classes
+                    (cls.students || []).forEach(student => uniqueStudents.add(student.id));
+                    
+                    // Count competencies in assignments
+                    return acc + (cls.assignments || []).reduce((aAcc, assign) => 
+                        aAcc + (assign.competencies || []).length, 0);
                 }, 0);
 
                 setStats({
-                    students: studentCount,
-                    classes: classCount,
+                    students: uniqueStudents.size,
+                    classes: classes.length,
                     competencies: competencyCount
                 });
 

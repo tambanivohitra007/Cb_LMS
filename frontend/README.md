@@ -73,6 +73,7 @@ src/
     ├── TeacherDashboard.jsx   # Teacher dashboard with statistics
     ├── ClassManagement.jsx    # Class CRUD operations (Teacher)
     ├── AssignmentManagement.jsx # Assignment CRUD operations (Teacher)
+    ├── UserManagement.jsx     # User CRUD operations (Admin)
     ├── Trash.jsx             # Soft delete management (Teacher)
     └── Profile.jsx           # User profile management
 ```
@@ -126,7 +127,7 @@ After the backend is seeded, you can use these accounts:
 
 - `POST /api/auth/login` - User authentication
 - `GET /api/classes` - Fetch classes (filtered by role)
-- `GET /api/users` - Fetch users (teacher only)
+- `GET /api/users` - Fetch users (admin only)
 - `GET /api/competencies/status` - Fetch competency status (student only)
 - `POST /api/classes` - Create new class (teacher only)
 - `PUT /api/classes/:id` - Update class (teacher only)
@@ -135,6 +136,9 @@ After the backend is seeded, you can use these accounts:
 - `POST /api/assignments` - Create assignment (teacher only)
 - `PUT /api/assignments/:id` - Update assignment (teacher only)
 - `DELETE /api/assignments/:id` - Delete assignment (teacher only)
+- `POST /api/users` - Create user (admin only)
+- `PUT /api/users/:id` - Update user (admin only)
+- `DELETE /api/users/:id` - Delete user (admin only)
 - `POST /api/submissions` - Submit assignment work (student only)
 - `GET /api/trash` - Fetch deleted items (teacher only)
 - `POST /api/trash/restore/class/:id` - Restore deleted class (teacher only)

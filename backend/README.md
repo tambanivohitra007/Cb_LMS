@@ -61,9 +61,11 @@ A Node.js/Express backend for a Competency-Based Learning Management System.
 ### Authentication
 - `POST /api/auth/login` - User login
 
-### Users (Teacher only)
+### Users (Admin only)
 - `GET /api/users` - Get all users
 - `POST /api/users` - Create new user
+- `PUT /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Soft delete user
 
 ### Classes
 - `GET /api/classes` - Get classes (filtered by role)
@@ -94,6 +96,11 @@ A Node.js/Express backend for a Competency-Based Learning Management System.
 ## Demo Accounts
 
 After running the seed script, you can use these accounts:
+
+**Admin Account:**
+- Email: `admin@demo.com`
+- Password: `password`
+- Role: Administrator (can manage all users)
 
 **Teacher Account:**
 - Email: `teacher@demo.com`

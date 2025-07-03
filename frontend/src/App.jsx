@@ -6,6 +6,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import ClassManagement from './pages/ClassManagement';
 import AssignmentManagement from './pages/AssignmentManagement';
+import UserManagement from './pages/UserManagement';
 import Trash from './pages/Trash';
 import Profile from './pages/Profile';
 
@@ -86,11 +87,14 @@ function App() {
                             <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
                             <Route path="/" element={
                                 <ProtectedRoute>
-                                    {user?.role === 'TEACHER' ? <TeacherDashboard /> : <StudentDashboard />}
+                                    {user?.role === 'TEACHER' ? <TeacherDashboard /> : 
+                                     user?.role === 'ADMIN' ? <UserManagement /> : 
+                                     <StudentDashboard />}
                                 </ProtectedRoute>
                             } />
                              <Route path="/classes" element={<ProtectedRoute role="TEACHER"><ClassManagement /></ProtectedRoute>} />
                              <Route path="/classes/:classId/assignments" element={<ProtectedRoute role="TEACHER"><AssignmentManagement /></ProtectedRoute>} />
+                             <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
                              <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
                              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                             <Route path="*" element={<Navigate to="/" />} />
@@ -114,6 +118,10 @@ function Navbar() {
         ],
         STUDENT: [
             { path: '/', name: 'Dashboard' },
+        ],
+        ADMIN: [
+            { path: '/', name: 'User Management' },
+            { path: '/users', name: 'Users' },
         ],
     };
 
