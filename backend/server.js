@@ -7,6 +7,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Joi from 'joi';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Load environment variables
 dotenv.config();
@@ -39,6 +42,23 @@ app.use(limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Multer setup for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(process.cwd(), 'uploads'));
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+});
+const upload = multer({ storage });
+
+// Ensure uploads directory exists
+if (!fs.existsSync(path.join(process.cwd(), 'uploads'))){
+    fs.mkdirSync(path.join(process.cwd(), 'uploads'));
+}
 
 // Validation schemas
 const loginSchema = Joi.object({
@@ -806,14 +826,17 @@ app.delete('/api/assignments/:id', authMiddleware, roleMiddleware(['TEACHER']), 
 });
 
 // --- SUBMISSION ROUTES ---
-app.post('/api/submissions', authMiddleware, roleMiddleware(['STUDENT']), validateRequest(submissionSchema), async (req, res, next) => {
+app.post('/api/submissions', authMiddleware, roleMiddleware(['STUDENT']), upload.single('file'), async (req, res, next) => {
     try {
         const { assignmentId, content } = req.body;
-        
+        let submissionContent = content;
+        if (req.file) {
+            submissionContent = `/uploads/${req.file.filename}`;
+        }
         // Verify the assignment exists and the student has access to it
         const assignment = await prisma.assignment.findFirst({
             where: {
-                id: assignmentId,
+                id: Number(assignmentId),
                 deleted_at: null,
                 class: {
                     students: { some: { id: req.user.userId } },
@@ -821,29 +844,26 @@ app.post('/api/submissions', authMiddleware, roleMiddleware(['STUDENT']), valida
                 }
             }
         });
-        
         if (!assignment) {
             return res.status(404).json({
                 success: false,
                 message: 'Assignment not found or you do not have access to it'
             });
         }
-        
         // Check if student already has a submission for this assignment
         const existingSubmission = await prisma.submission.findFirst({
             where: {
-                assignmentId,
+                assignmentId: Number(assignmentId),
                 studentId: req.user.userId
             }
         });
-        
         let submission;
         if (existingSubmission) {
             // Update existing submission
             submission = await prisma.submission.update({
                 where: { id: existingSubmission.id },
-                data: { 
-                    content,
+                data: {
+                    content: submissionContent,
                     status: 'IN_PROGRESS',
                     submitted_at: new Date()
                 },
@@ -857,8 +877,8 @@ app.post('/api/submissions', authMiddleware, roleMiddleware(['STUDENT']), valida
             // Create new submission
             submission = await prisma.submission.create({
                 data: {
-                    content,
-                    assignmentId,
+                    content: submissionContent,
+                    assignmentId: Number(assignmentId),
                     studentId: req.user.userId,
                 },
                 include: {
@@ -868,7 +888,6 @@ app.post('/api/submissions', authMiddleware, roleMiddleware(['STUDENT']), valida
                 }
             });
         }
-        
         res.status(201).json({ success: true, data: submission });
     } catch (error) {
         next(error);

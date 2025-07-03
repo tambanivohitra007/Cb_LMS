@@ -10,6 +10,7 @@ import StudentManagement from './pages/StudentManagement';
 import UserManagement from './pages/UserManagement';
 import Trash from './pages/Trash';
 import Profile from './pages/Profile';
+import StudentClassPage from './pages/StudentClassPage';
 
 const AuthContext = createContext(null);
 
@@ -99,6 +100,7 @@ function App() {
                              <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
                              <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
                              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                             <Route path="/student/classes/:classId" element={<StudentClassPage />} />
                             <Route path="*" element={<Navigate to="/" />} />
                         </Routes>
                     </main>
