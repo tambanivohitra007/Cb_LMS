@@ -62,19 +62,19 @@ const userUpdateSchema = Joi.object({
 
 const classSchema = Joi.object({
     name: Joi.string().min(1).max(200).required(),
-    description: Joi.string().max(1000).optional()
+    description: Joi.string().max(5000).optional() // Increased for rich content
 });
 
 const assignmentSchema = Joi.object({
     title: Joi.string().min(1).max(200).required(),
-    description: Joi.string().max(1000).optional(),
+    description: Joi.string().max(10000).optional(), // Increased for rich content
     classId: Joi.number().integer().positive().required(),
     competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required()
 });
 
 const assignmentUpdateSchema = Joi.object({
     title: Joi.string().min(1).max(200).required(),
-    description: Joi.string().max(1000).optional(),
+    description: Joi.string().max(10000).optional(), // Increased for rich content
     classId: Joi.number().integer().positive().optional(), // Optional for updates (ignored)
     competencyNames: Joi.array().items(Joi.string().min(1).max(100)).min(1).required()
 });

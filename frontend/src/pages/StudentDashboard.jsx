@@ -131,7 +131,12 @@ function StudentDashboard() {
                         classes.map(cls => (
                             <div key={cls.id} className="bg-white p-6 rounded-lg shadow-md mb-6">
                                 <h3 className="text-xl font-bold text-indigo-700">{cls.name}</h3>
-                                <p className="text-gray-600 mb-4">{cls.description}</p>
+                                <div 
+                                    className="text-gray-600 mb-4 prose prose-sm max-w-none"
+                                    dangerouslySetInnerHTML={{ 
+                                        __html: cls.description || '<p class="text-gray-500 italic">No description</p>' 
+                                    }}
+                                />
                                 <p className="text-sm text-gray-500 mb-4">
                                     Teacher: {cls.teacher?.name || 'Unknown'}
                                 </p>
@@ -140,7 +145,12 @@ function StudentDashboard() {
                                     cls.assignments.map(assignment => (
                                         <div key={assignment.id} className="border-t pt-4 mt-4">
                                             <h4 className="font-semibold">{assignment.title}</h4>
-                                            <p className="text-sm text-gray-500 mb-2">{assignment.description}</p>
+                                            <div 
+                                                className="text-sm text-gray-600 mb-2 prose prose-sm max-w-none"
+                                                dangerouslySetInnerHTML={{ 
+                                                    __html: assignment.description || '<p class="text-gray-500 italic">No description</p>' 
+                                                }}
+                                            />
                                             <p className="text-sm font-medium mb-3">
                                                 Competencies: {assignment.competencies?.map(c => c.name).join(', ') || 'None'}
                                             </p>

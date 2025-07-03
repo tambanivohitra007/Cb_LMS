@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useParams, useNavigate } from 'react-router-dom';
+import RichTextEditor from '../components/RichTextEditor';
 
 function AssignmentManagement() {
     const { apiClient } = useAuth();
@@ -269,12 +270,11 @@ function AssignmentManagement() {
                             <label className="block text-gray-700 text-sm font-bold mb-2">
                                 Description
                             </label>
-                            <textarea
+                            <RichTextEditor
                                 value={newAssignment.description}
-                                onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                placeholder="Enter assignment description"
-                                rows="3"
+                                onChange={(content) => setNewAssignment({ ...newAssignment, description: content })}
+                                placeholder="Provide detailed assignment instructions, requirements, and expectations..."
+                                className="min-h-[300px]"
                             />
                         </div>
 
@@ -363,11 +363,11 @@ function AssignmentManagement() {
                                                 <label className="block text-gray-700 text-sm font-bold mb-2">
                                                     Description
                                                 </label>
-                                                <textarea
+                                                <RichTextEditor
                                                     value={editAssignment.description}
-                                                    onChange={(e) => setEditAssignment({ ...editAssignment, description: e.target.value })}
-                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                    rows="3"
+                                                    onChange={(content) => setEditAssignment({ ...editAssignment, description: content })}
+                                                    placeholder="Provide detailed assignment instructions, requirements, and expectations..."
+                                                    className="min-h-[300px]"
                                                 />
                                             </div>
 
@@ -428,7 +428,12 @@ function AssignmentManagement() {
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1">
                                                 <h3 className="text-xl font-bold text-indigo-800">{assignment.title}</h3>
-                                                <p className="text-gray-600 mt-1">{assignment.description || 'No description'}</p>
+                                                <div 
+                                                    className="text-gray-600 mt-1 prose prose-sm max-w-none"
+                                                    dangerouslySetInnerHTML={{ 
+                                                        __html: assignment.description || '<p class="text-gray-500 italic">No description</p>' 
+                                                    }}
+                                                />
                                                 <p className="text-sm text-gray-500 mt-2">
                                                     Submissions: {assignment._count?.submissions || 0}
                                                 </p>

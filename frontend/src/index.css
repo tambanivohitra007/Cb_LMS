@@ -5,3 +5,62 @@
 body {
     @apply bg-gray-50 text-gray-800;
 }
+
+/* Rich Text Editor Styles */
+.rich-text-editor .ql-editor {
+    @apply min-h-[150px] text-base;
+    font-family: inherit;
+}
+
+.rich-text-editor .ql-toolbar {
+    @apply border-gray-300 bg-gray-50 rounded-t-lg;
+}
+
+.rich-text-editor .ql-container {
+    @apply border-gray-300 rounded-b-lg;
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+    @apply italic text-gray-400;
+}
+
+/* Prose styling for rich content display */
+.prose {
+    @apply max-w-none;
+}
+
+.prose h1, .prose h2, .prose h3 {
+    @apply text-gray-800 font-semibold;
+}
+
+.prose h1 { @apply text-xl; }
+.prose h2 { @apply text-lg; }
+.prose h3 { @apply text-base; }
+
+.prose p {
+    @apply mb-3 leading-relaxed;
+}
+
+.prose ul, .prose ol {
+    @apply mb-3;
+}
+
+.prose li {
+    @apply mb-1;
+}
+
+.prose blockquote {
+    @apply border-l-4 border-indigo-200 pl-4 italic text-gray-600 bg-gray-50 py-2 my-3 rounded-r;
+}
+
+.prose code {
+    @apply bg-gray-100 text-gray-800 px-1 py-0.5 rounded text-sm;
+}
+
+.prose pre {
+    @apply bg-gray-100 p-3 rounded text-sm overflow-x-auto;
+}
+
+.prose a {
+    @apply text-indigo-600 hover:text-indigo-800 underline;
+}

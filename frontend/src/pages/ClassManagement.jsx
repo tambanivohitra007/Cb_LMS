@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useNavigate } from 'react-router-dom';
+import RichTextEditor from '../components/RichTextEditor';
 
 function ClassManagement() {
     const { apiClient } = useAuth();
@@ -156,12 +157,11 @@ function ClassManagement() {
                             <label className="block text-gray-700 text-sm font-bold mb-2">
                                 Description
                             </label>
-                            <textarea
+                            <RichTextEditor
                                 value={newClass.description}
-                                onChange={(e) => setNewClass({ ...newClass, description: e.target.value })}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                placeholder="Enter class description"
-                                rows="3"
+                                onChange={(content) => setNewClass({ ...newClass, description: content })}
+                                placeholder="Enter a detailed class description..."
+                                className="min-h-[200px]"
                             />
                         </div>
                         <div className="flex space-x-4">
@@ -215,12 +215,11 @@ function ClassManagement() {
                                                 <label className="block text-gray-700 text-sm font-bold mb-2">
                                                     Description
                                                 </label>
-                                                <textarea
+                                                <RichTextEditor
                                                     value={editClass.description}
-                                                    onChange={(e) => setEditClass({ ...editClass, description: e.target.value })}
-                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                                    placeholder="Enter class description"
-                                                    rows="3"
+                                                    onChange={(content) => setEditClass({ ...editClass, description: content })}
+                                                    placeholder="Enter a detailed class description..."
+                                                    className="min-h-[200px]"
                                                 />
                                             </div>
                                             <div className="flex space-x-4">
@@ -247,7 +246,12 @@ function ClassManagement() {
                                         <div className="flex justify-between items-center">
                                             <div>
                                                 <h3 className="text-xl font-bold text-indigo-800">{cls.name}</h3>
-                                                <p className="text-gray-600">{cls.description || 'No description'}</p>
+                                                <div 
+                                                    className="text-gray-600 prose prose-sm max-w-none"
+                                                    dangerouslySetInnerHTML={{ 
+                                                        __html: cls.description || '<p class="text-gray-500 italic">No description</p>' 
+                                                    }}
+                                                />
                                                 <p className="text-sm text-gray-500 mt-1">
                                                     Students: {cls.students?.length || 0} | 
                                                     Assignments: {cls.assignments?.length || 0}
