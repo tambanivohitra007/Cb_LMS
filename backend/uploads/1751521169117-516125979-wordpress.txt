@@ -1,0 +1,8 @@
+wordpress
+id: admin
+pass: 8Yf&9aU8G0
+
+
+moodle
+id: admin
+pass: 1Iq&i#E13s

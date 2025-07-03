@@ -16,7 +16,21 @@ model User {
   photo       String?
   classes     Class[]   @relation("ClassStudents")
   taughtClasses Class[]   @relation("TeacherClasses")
+  cohorts     Cohort[]  @relation("TeacherCohorts")
   submissions Submission[]
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+}
+
+model Cohort {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique // e.g., "Elementary", "Middle School", "High School"
+  description String?
+  level       Int       @default(1) // 1 = Elementary, 2 = Middle, 3 = High School, etc.
+  teacherId   Int
+  teacher     User      @relation("TeacherCohorts", fields: [teacherId], references: [id])
+  classes     Class[]
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   deleted_at  DateTime?
@@ -28,6 +42,8 @@ model Class {
   description String?
   teacherId   Int
   teacher     User      @relation("TeacherClasses", fields: [teacherId], references: [id])
+  cohortId    Int?      // Optional cohort assignment
+  cohort      Cohort?   @relation(fields: [cohortId], references: [id])
   students    User[]    @relation("ClassStudents")
   assignments Assignment[]
   created_at  DateTime  @default(now())

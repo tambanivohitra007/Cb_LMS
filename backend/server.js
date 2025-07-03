@@ -82,7 +82,14 @@ const userUpdateSchema = Joi.object({
 
 const classSchema = Joi.object({
     name: Joi.string().min(1).max(200).required(),
-    description: Joi.string().max(5000).optional() // Increased for rich content
+    description: Joi.string().max(5000).optional(), // Increased for rich content
+    cohortId: Joi.number().integer().positive().optional() // Optional cohort assignment
+});
+
+const cohortSchema = Joi.object({
+    name: Joi.string().min(1).max(100).required(),
+    description: Joi.string().max(1000).optional(),
+    level: Joi.number().integer().min(1).max(10).optional()
 });
 
 const assignmentSchema = Joi.object({
@@ -453,7 +460,10 @@ app.get('/api/classes', authMiddleware, async (req, res, next) => {
                 include: { 
                     teacher: {
                         select: { id: true, name: true, email: true }
-                    }, 
+                    },
+                    cohort: {
+                        select: { id: true, name: true, level: true }
+                    },
                     students: {
                         select: { id: true, name: true, email: true }
                     }, 
@@ -476,6 +486,9 @@ app.get('/api/classes', authMiddleware, async (req, res, next) => {
                 include: {
                     teacher: {
                         select: { id: true, name: true, email: true }
+                    },
+                    cohort: {
+                        select: { id: true, name: true, level: true }
                     },
                     assignments: {
                         include: {
@@ -503,12 +516,39 @@ app.get('/api/classes', authMiddleware, async (req, res, next) => {
 
 app.post('/api/classes', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(classSchema), async (req, res, next) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, cohortId } = req.body;
+        
+        // Validate cohort if provided
+        if (cohortId) {
+            const cohort = await prisma.cohort.findFirst({
+                where: {
+                    id: cohortId,
+                    teacherId: req.user.userId,
+                    deleted_at: null
+                }
+            });
+            
+            if (!cohort) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid cohort or cohort does not belong to you'
+                });
+            }
+        }
+        
         const newClass = await prisma.class.create({
-            data: { name, description, teacherId: req.user.userId },
+            data: { 
+                name, 
+                description, 
+                teacherId: req.user.userId,
+                cohortId: cohortId || null
+            },
             include: {
                 teacher: {
                     select: { id: true, name: true, email: true }
+                },
+                cohort: {
+                    select: { id: true, name: true, level: true }
                 },
                 _count: {
                     select: { students: true, assignments: true }
@@ -525,7 +565,7 @@ app.post('/api/classes', authMiddleware, roleMiddleware(['TEACHER']), validateRe
 app.put('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(classSchema), async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { name, description } = req.body;
+        const { name, description, cohortId } = req.body;
         const classId = parseInt(id);
         
         if (isNaN(classId)) {
@@ -533,6 +573,24 @@ app.put('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), validat
                 success: false,
                 message: 'Invalid class ID'
             });
+        }
+        
+        // Validate cohort if provided
+        if (cohortId) {
+            const cohort = await prisma.cohort.findFirst({
+                where: {
+                    id: cohortId,
+                    teacherId: req.user.userId,
+                    deleted_at: null
+                }
+            });
+            
+            if (!cohort) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid cohort or cohort does not belong to you'
+                });
+            }
         }
         
         // Verify the class exists and belongs to the teacher
@@ -553,8 +611,18 @@ app.put('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), validat
         
         const updatedClass = await prisma.class.update({
             where: { id: classId },
-            data: { name, description },
+            data: { 
+                name, 
+                description,
+                cohortId: cohortId || null
+            },
             include: {
+                teacher: {
+                    select: { id: true, name: true, email: true }
+                },
+                cohort: {
+                    select: { id: true, name: true, level: true }
+                },
                 teacher: {
                     select: { id: true, name: true, email: true }
                 },
@@ -605,6 +673,212 @@ app.delete('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), asyn
         });
         
         res.json({ success: true, message: 'Class deleted successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- COHORT ROUTES ---
+
+// Get all cohorts for a teacher
+app.get('/api/cohorts', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const cohorts = await prisma.cohort.findMany({
+            where: {
+                teacherId: req.user.userId,
+                deleted_at: null
+            },
+            include: {
+                classes: {
+                    where: { deleted_at: null },
+                    include: {
+                        students: {
+                            select: { id: true, name: true, email: true }
+                        },
+                        _count: {
+                            select: { assignments: true }
+                        }
+                    }
+                },
+                _count: {
+                    select: { classes: true }
+                }
+            },
+            orderBy: [
+                { level: 'asc' },
+                { name: 'asc' }
+            ]
+        });
+
+        res.json({ success: true, data: cohorts });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Create a new cohort
+app.post('/api/cohorts', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(cohortSchema), async (req, res, next) => {
+    try {
+        const { name, description, level } = req.body;
+
+        // Check if cohort name already exists for this teacher
+        const existingCohort = await prisma.cohort.findFirst({
+            where: {
+                name,
+                teacherId: req.user.userId,
+                deleted_at: null
+            }
+        });
+
+        if (existingCohort) {
+            return res.status(409).json({
+                success: false,
+                message: 'A cohort with this name already exists'
+            });
+        }
+
+        const newCohort = await prisma.cohort.create({
+            data: {
+                name,
+                description,
+                level: level || 1,
+                teacherId: req.user.userId
+            },
+            include: {
+                _count: {
+                    select: { classes: true }
+                }
+            }
+        });
+
+        res.status(201).json({ success: true, data: newCohort });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Update a cohort
+app.put('/api/cohorts/:id', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(cohortSchema), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { name, description, level } = req.body;
+        const cohortId = parseInt(id);
+
+        if (isNaN(cohortId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid cohort ID'
+            });
+        }
+
+        // Check if cohort exists and belongs to teacher
+        const existingCohort = await prisma.cohort.findFirst({
+            where: {
+                id: cohortId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            }
+        });
+
+        if (!existingCohort) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cohort not found or you do not have permission to update it'
+            });
+        }
+
+        // Check if new name conflicts with existing cohort (excluding current one)
+        if (name !== existingCohort.name) {
+            const nameConflict = await prisma.cohort.findFirst({
+                where: {
+                    name,
+                    teacherId: req.user.userId,
+                    deleted_at: null,
+                    NOT: { id: cohortId }
+                }
+            });
+
+            if (nameConflict) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'A cohort with this name already exists'
+                });
+            }
+        }
+
+        const updatedCohort = await prisma.cohort.update({
+            where: { id: cohortId },
+            data: {
+                name,
+                description,
+                level: level || existingCohort.level
+            },
+            include: {
+                _count: {
+                    select: { classes: true }
+                }
+            }
+        });
+
+        res.json({ success: true, data: updatedCohort });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Delete a cohort (soft delete)
+app.delete('/api/cohorts/:id', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const cohortId = parseInt(id);
+
+        if (isNaN(cohortId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid cohort ID'
+            });
+        }
+
+        // Check if cohort exists and belongs to teacher
+        const existingCohort = await prisma.cohort.findFirst({
+            where: {
+                id: cohortId,
+                teacherId: req.user.userId,
+                deleted_at: null
+            },
+            include: {
+                classes: {
+                    where: { deleted_at: null }
+                }
+            }
+        });
+
+        if (!existingCohort) {
+            return res.status(404).json({
+                success: false,
+                message: 'Cohort not found or you do not have permission to delete it'
+            });
+        }
+
+        // Unassign classes from cohort before deleting
+        if (existingCohort.classes.length > 0) {
+            await prisma.class.updateMany({
+                where: {
+                    cohortId: cohortId
+                },
+                data: {
+                    cohortId: null
+                }
+            });
+        }
+
+        // Soft delete the cohort
+        await prisma.cohort.update({
+            where: { id: cohortId },
+            data: { deleted_at: new Date() }
+        });
+
+        res.json({ success: true, message: 'Cohort deleted successfully' });
     } catch (error) {
         next(error);
     }
@@ -1345,6 +1619,61 @@ app.post('/api/submissions/:id/feedback', authMiddleware, roleMiddleware(['TEACH
             }
         });
         res.json({ success: true, data: updatedSubmission });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// --- TEACHER SUBMISSION REVIEW ROUTES ---
+// Get all submissions for an assignment (teacher only)
+app.get('/api/assignments/:assignmentId/submissions', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { assignmentId } = req.params;
+        const assignment = await prisma.assignment.findFirst({
+            where: {
+                id: Number(assignmentId),
+                deleted_at: null,
+                class: { teacherId: req.user.userId, deleted_at: null }
+            },
+            include: {
+                submissions: {
+                    include: {
+                        student: { select: { id: true, name: true, email: true, photo: true } }
+                    },
+                    orderBy: { submitted_at: 'desc' }
+                }
+            }
+        });
+        if (!assignment) {
+            return res.status(404).json({ success: false, message: 'Assignment not found or you do not have permission' });
+        }
+        res.json({ success: true, data: assignment.submissions });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Update submission status (accept and set competency level)
+app.put('/api/submissions/:id/status', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // status: 'ACHIEVED' | 'MASTERED' | 'IN_PROGRESS'
+        if (!['ACHIEVED', 'MASTERED', 'IN_PROGRESS'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status' });
+        }
+        // Find submission and ensure teacher owns the assignment
+        const submission = await prisma.submission.findUnique({
+            where: { id: Number(id) },
+            include: { assignment: { include: { class: true } } }
+        });
+        if (!submission || !submission.assignment || submission.assignment.class.teacherId !== req.user.userId) {
+            return res.status(404).json({ success: false, message: 'Submission not found or you do not have permission' });
+        }
+        const updated = await prisma.submission.update({
+            where: { id: Number(id) },
+            data: { status, reviewed_at: new Date() }
+        });
+        res.json({ success: true, data: updated });
     } catch (error) {
         next(error);
     }

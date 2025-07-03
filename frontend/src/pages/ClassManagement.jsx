@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useNavigate } from 'react-router-dom';
 import RichTextEditor from '../components/RichTextEditor';
+import { Users, GraduationCap, School, User } from 'lucide-react';
 
 function ClassManagement() {
     const { apiClient } = useAuth();
     const navigate = useNavigate();
     const [classes, setClasses] = useState([]);
+    const [cohorts, setCohorts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showCreateForm, setShowCreateForm] = useState(false);
-    const [newClass, setNewClass] = useState({ name: '', description: '' });
+    const [newClass, setNewClass] = useState({ name: '', description: '', cohortId: '' });
     const [creating, setCreating] = useState(false);
     const [editingClass, setEditingClass] = useState(null);
-    const [editClass, setEditClass] = useState({ name: '', description: '' });
+    const [editClass, setEditClass] = useState({ name: '', description: '', cohortId: '' });
     const [updating, setUpdating] = useState(false);
 
     const fetchClasses = async () => {
@@ -29,8 +31,19 @@ function ClassManagement() {
         }
     };
 
+    const fetchCohorts = async () => {
+        try {
+            const res = await apiClient.get('/cohorts');
+            setCohorts(res.data || []);
+        } catch (error) {
+            console.error("Failed to fetch cohorts", error);
+            // Don't set error for cohorts as it's optional
+        }
+    };
+
     useEffect(() => {
         fetchClasses();
+        fetchCohorts();
     }, [apiClient]);
 
     const handleDelete = async (classId) => {
@@ -47,13 +60,41 @@ function ClassManagement() {
 
     const handleEdit = (cls) => {
         setEditingClass(cls.id);
-        setEditClass({ name: cls.name, description: cls.description || '' });
+        setEditClass({ 
+            name: cls.name, 
+            description: cls.description || '',
+            cohortId: cls.cohort?.id || ''
+        });
         setShowCreateForm(false); // Close create form if open
     };
 
     const handleCancelEdit = () => {
         setEditingClass(null);
-        setEditClass({ name: '', description: '' });
+        setEditClass({ name: '', description: '', cohortId: '' });
+    };
+
+    // Helper functions for cohort display
+    const getLevelName = (level) => {
+        const levels = {
+            1: 'Elementary',
+            2: 'Middle School', 
+            3: 'High School',
+            4: 'College',
+            5: 'Graduate'
+        };
+        return levels[level] || `Level ${level}`;
+    };
+
+    const getLevelIcon = (level) => {
+        if (level <= 1) return <User className="h-4 w-4" />;
+        if (level <= 2) return <School className="h-4 w-4" />;
+        return <GraduationCap className="h-4 w-4" />;
+    };
+
+    const getLevelColor = (level) => {
+        if (level <= 1) return 'bg-green-100 text-green-800';
+        if (level <= 2) return 'bg-blue-100 text-blue-800'; 
+        return 'bg-purple-100 text-purple-800';
     };
 
     const handleUpdateClass = async (e) => {
@@ -65,12 +106,19 @@ function ClassManagement() {
 
         try {
             setUpdating(true);
-            await apiClient.put(`/classes/${editingClass}`, {
+            const updateData = {
                 name: editClass.name.trim(),
                 description: editClass.description.trim()
-            });
+            };
+            
+            // Only include cohortId if one is selected
+            if (editClass.cohortId) {
+                updateData.cohortId = editClass.cohortId;
+            }
+            
+            await apiClient.put(`/classes/${editingClass}`, updateData);
             setEditingClass(null);
-            setEditClass({ name: '', description: '' });
+            setEditClass({ name: '', description: '', cohortId: '' });
             fetchClasses(); // Refresh list
         } catch (error) {
             console.error('Failed to update class', error);
@@ -89,11 +137,18 @@ function ClassManagement() {
 
         try {
             setCreating(true);
-            await apiClient.post('/classes', {
+            const createData = {
                 name: newClass.name.trim(),
                 description: newClass.description.trim()
-            });
-            setNewClass({ name: '', description: '' });
+            };
+            
+            // Only include cohortId if one is selected
+            if (newClass.cohortId) {
+                createData.cohortId = newClass.cohortId;
+            }
+            
+            await apiClient.post('/classes', createData);
+            setNewClass({ name: '', description: '', cohortId: '' });
             setShowCreateForm(false);
             fetchClasses(); // Refresh list
         } catch (error) {
@@ -164,6 +219,23 @@ function ClassManagement() {
                                 className="min-h-[200px]"
                             />
                         </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                                Cohort (Optional)
+                            </label>
+                            <select
+                                value={newClass.cohortId}
+                                onChange={(e) => setNewClass({ ...newClass, cohortId: e.target.value })}
+                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            >
+                                <option value="">Select a cohort (optional)</option>
+                                {cohorts.map(cohort => (
+                                    <option key={cohort.id} value={cohort.id}>
+                                        {cohort.name} - {getLevelName(cohort.level)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="flex space-x-4">
                             <button
                                 type="submit"
@@ -222,6 +294,23 @@ function ClassManagement() {
                                                     className="min-h-[200px]"
                                                 />
                                             </div>
+                                            <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                    Cohort (Optional)
+                                                </label>
+                                                <select
+                                                    value={editClass.cohortId}
+                                                    onChange={(e) => setEditClass({ ...editClass, cohortId: e.target.value })}
+                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                >
+                                                    <option value="">Select a cohort (optional)</option>
+                                                    {cohorts.map(cohort => (
+                                                        <option key={cohort.id} value={cohort.id}>
+                                                            {cohort.name} - {getLevelName(cohort.level)}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                             <div className="flex space-x-4">
                                                 <button
                                                     type="submit"
@@ -243,42 +332,60 @@ function ClassManagement() {
                                 ) : (
                                     // View Mode
                                     <div>
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <h3 className="text-xl font-bold text-indigo-800">{cls.name}</h3>
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="text-xl font-bold text-indigo-800">{cls.name}</h3>
+                                                    {cls.cohort && (
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getLevelColor(cls.cohort.level)}`}>
+                                                            {getLevelIcon(cls.cohort.level)}
+                                                            {cls.cohort.name}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div 
-                                                    className="text-gray-600 prose prose-sm max-w-none"
+                                                    className="text-gray-600 prose prose-sm max-w-none mb-2"
                                                     dangerouslySetInnerHTML={{ 
                                                         __html: cls.description || '<p class="text-gray-500 italic">No description</p>' 
                                                     }}
                                                 />
-                                                <p className="text-sm text-gray-500 mt-1">
-                                                    Students: {cls.students?.length || 0} | 
-                                                    Assignments: {cls.assignments?.length || 0}
-                                                </p>
+                                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                                    <span className="flex items-center gap-1">
+                                                        <Users className="h-4 w-4" />
+                                                        {cls.students?.length || 0} Students
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span>{cls.assignments?.length || 0} Assignments</span>
+                                                    {cls.cohort && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span>{getLevelName(cls.cohort.level)}</span>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-2 ml-4">
                                                 <button 
                                                     onClick={() => navigate(`/classes/${cls.id}/assignments`)}
-                                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm"
+                                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm transition-colors"
                                                 >
                                                     Assignments
                                                 </button>
                                                 <button 
                                                     onClick={() => navigate(`/classes/${cls.id}/students`)}
-                                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors"
                                                 >
                                                     Students
                                                 </button>
                                                 <button 
                                                     onClick={() => handleEdit(cls)}
-                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors"
                                                 >
                                                     Edit
                                                 </button>
                                                 <button 
                                                     onClick={() => handleDelete(cls.id)} 
-                                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
                                                 >
                                                     Trash
                                                 </button>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import RichTextEditor from '../components/RichTextEditor';
 
 function AssignmentManagement() {
@@ -483,19 +483,27 @@ function AssignmentManagement() {
                                                 </div>
                                             </div>
                                             
-                                            <div className="flex space-x-2 ml-4">
-                                                <button 
-                                                    onClick={() => handleEdit(assignment)}
-                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+                                            <div className="ml-4 flex flex-col gap-2">
+                                                <Link
+                                                    to={`/teacher/assignments/${assignment.id}/submissions`}
+                                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm text-center"
                                                 >
-                                                    Edit
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDelete(assignment.id)} 
-                                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-                                                >
-                                                    Delete
-                                                </button>
+                                                    Review Submissions
+                                                </Link>
+                                                <div className="flex space-x-2">
+                                                    <button 
+                                                        onClick={() => handleEdit(assignment)}
+                                                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(assignment.id)} 
+                                                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
