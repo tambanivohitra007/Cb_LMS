@@ -13,6 +13,7 @@ import Trash from './pages/Trash';
 import Profile from './pages/Profile';
 import StudentClassPage from './pages/StudentClassPage';
 import AssignmentSubmissionsReview from './pages/AssignmentSubmissionsReview';
+import StudentProgressPage from './pages/StudentProgressPage';
 
 const AuthContext = createContext(null);
 
@@ -103,6 +104,8 @@ function App() {
                              <Route path="/users" element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
                              <Route path="/trash" element={<ProtectedRoute role="TEACHER"><Trash /></ProtectedRoute>} />
                              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                             <Route path="/progress" element={<ProtectedRoute role="STUDENT"><StudentProgressPage /></ProtectedRoute>} />
+                             <Route path="/progress/:classId" element={<ProtectedRoute role="STUDENT"><StudentProgressPage /></ProtectedRoute>} />
                              <Route path="/student/classes/:classId" element={<StudentClassPage />} />
                              <Route path="/teacher/assignments/:assignmentId/submissions" element={<AssignmentSubmissionsReview />} />
                             <Route path="*" element={<Navigate to="/" />} />
@@ -127,6 +130,7 @@ function Navbar() {
         ],
         STUDENT: [
             { path: '/', name: 'Dashboard' },
+            { path: '/progress', name: 'My Progress' },
         ],
         ADMIN: [
             { path: '/', name: 'User Management' },

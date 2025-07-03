@@ -18,6 +18,7 @@ model User {
   taughtClasses Class[]   @relation("TeacherClasses")
   cohorts     Cohort[]  @relation("TeacherCohorts")
   submissions Submission[]
+  competencyProgress CompetencyProgress[] @relation("StudentCompetencies")
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   deleted_at  DateTime?
@@ -71,7 +72,25 @@ model Competency {
   description  String?
   assignmentId Int
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  progress     CompetencyProgress[]
   created_at   DateTime   @default(now())
+}
+
+model CompetencyProgress {
+  id           Int        @id @default(autoincrement())
+  competencyId Int
+  competency   Competency @relation(fields: [competencyId], references: [id])
+  studentId    Int
+  student      User       @relation("StudentCompetencies", fields: [studentId], references: [id])
+  status       String     @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, ACHIEVED, MASTERED
+  submissionId Int?       // Optional link to the submission that achieved this competency
+  submission   Submission? @relation(fields: [submissionId], references: [id])
+  achieved_at  DateTime?  // When the competency was achieved/mastered
+  feedback     String?    // Teacher feedback on this specific competency
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+
+  @@unique([competencyId, studentId])
 }
 
 model Submission {
@@ -82,6 +101,7 @@ model Submission {
   student      User     @relation(fields: [studentId], references: [id])
   assignmentId Int
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  competencyProgress CompetencyProgress[]
   submitted_at DateTime @default(now())
   reviewed_at  DateTime?
   feedback     String?   // Teacher's feedback on the submission

@@ -1079,12 +1079,7 @@ app.get('/api/cohorts/:id/students', authMiddleware, roleMiddleware(['TEACHER'])
             },
             include: {
                 classes: {
-                    where: { deleted_at: null },
-                    include: {
-                        students: {
-                            select: { id: true, name: true, email: true }
-                        }
-                    }
+                    where: { deleted_at: null }
                 }
             }
         });
@@ -1466,449 +1461,337 @@ app.get('/api/competencies/status', authMiddleware, roleMiddleware(['STUDENT']),
     }
 });
 
+// ===== COMPETENCY PROGRESS ENDPOINTS =====
 
-// --- TRASH ROUTES (Teacher only) ---
-app.get('/api/trash', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+// Get student's competency progress overview
+app.get('/api/competencies/progress', authMiddleware, roleMiddleware(['STUDENT']), async (req, res, next) => {
     try {
-        const deletedClasses = await prisma.class.findMany({
-            where: { 
-                NOT: { deleted_at: null },
-                teacherId: req.user.userId 
-            },
-            include: {
-                teacher: {
-                    select: { id: true, name: true, email: true }
-                },
-                _count: {
-                    select: { students: true, assignments: true }
-                }
-            }
-        });
-        
-        res.json({ success: true, data: { deletedClasses } });
-    } catch (error) {
-        next(error);
-    }
-});
+        const studentId = req.user.id;
 
-app.post('/api/trash/restore/class/:id', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const classId = parseInt(id);
-        
-        if (isNaN(classId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid class ID'
-            });
-        }
-        
-        // Verify the class exists in trash and belongs to the teacher
-        const deletedClass = await prisma.class.findFirst({
-            where: { 
-                id: classId, 
-                teacherId: req.user.userId,
-                NOT: { deleted_at: null }
-            }
-        });
-        
-        if (!deletedClass) {
-            return res.status(404).json({
-                success: false,
-                message: 'Deleted class not found or you do not have permission to restore it'
-            });
-        }
-        
-        await prisma.class.update({
-            where: { id: classId },
-            data: { deleted_at: null },
-        });
-        
-        res.json({ success: true, message: 'Class restored successfully' });
-    } catch (error) {
-        next(error);
-    }
-});
-
-app.delete('/api/trash/permanent/class/:id', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const classId = parseInt(id);
-        
-        if (isNaN(classId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid class ID'
-            });
-        }
-        
-        // Verify the class exists in trash and belongs to the teacher
-        const deletedClass = await prisma.class.findFirst({
-            where: { 
-                id: classId, 
-                teacherId: req.user.userId,
-                NOT: { deleted_at: null }
-            }
-        });
-        
-        if (!deletedClass) {
-            return res.status(404).json({
-                success: false,
-                message: 'Deleted class not found or you do not have permission to delete it permanently'
-            });
-        }
-        
-        // In a real app, you might want to delete related records first
-        // or use CASCADE delete in your database schema
-        await prisma.class.delete({
-            where: { id: classId },
-        });
-        
-        res.json({ success: true, message: 'Class permanently deleted' });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// --- STUDENT MANAGEMENT ROUTES (Teacher only) ---
-// Get all students available for enrollment (excluding those already in the class)
-app.get('/api/classes/:classId/available-students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
-    try {
-        const { classId } = req.params;
-        const classIdInt = parseInt(classId);
-        
-        if (isNaN(classIdInt)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid class ID'
-            });
-        }
-        
-        // Verify the class exists and belongs to the teacher
-        const classExists = await prisma.class.findFirst({
-            where: { 
-                id: classIdInt, 
-                teacherId: req.user.userId,
-                deleted_at: null 
-            }
-        });
-        
-        if (!classExists) {
-            return res.status(404).json({
-                success: false,
-                message: 'Class not found or you do not have permission to manage it'
-            });
-        }
-        
-        // Get all students not already enrolled in this class
-        const availableStudents = await prisma.user.findMany({
+        // Get all classes the student is enrolled in
+        const studentClasses = await prisma.class.findMany({
             where: {
-                role: 'STUDENT',
-                deleted_at: null,
-                NOT: {
-                    classes: {
-                        some: { id: classIdInt }
+                students: {
+                    some: {
+                        id: studentId
                     }
                 }
             },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                photo: true
-            },
-            orderBy: { name: 'asc' }
+            include: {
+                assignments: {
+                    include: {
+                        competencies: {
+                            include: {
+                                progress: {
+                                    where: {
+                                        studentId: studentId
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         });
-        
-        res.json({ success: true, data: availableStudents });
+
+        const progressSummary = {
+            totalCompetencies: 0,
+            notStarted: 0,
+            inProgress: 0,
+            achieved: 0,
+            mastered: 0,
+            classesSummary: []
+        };
+
+        for (const classItem of studentClasses) {
+            const classProgress = {
+                classId: classItem.id,
+                className: classItem.name,
+                assignments: []
+            };
+
+            for (const assignment of classItem.assignments) {
+                const assignmentProgress = {
+                    assignmentId: assignment.id,
+                    assignmentTitle: assignment.title,
+                    competencies: []
+                };
+
+                for (const competency of assignment.competencies) {
+                    progressSummary.totalCompetencies++;
+                    
+                    const progress = competency.progress[0]; // Should be unique per student
+                    const status = progress?.status || 'NOT_STARTED';
+                    
+                    // Count statuses
+                    if (status === 'NOT_STARTED') progressSummary.notStarted++;
+                    else if (status === 'IN_PROGRESS') progressSummary.inProgress++;
+                    else if (status === 'ACHIEVED') progressSummary.achieved++;
+                    else if (status === 'MASTERED') progressSummary.mastered++;
+
+                    assignmentProgress.competencies.push({
+                        competencyId: competency.id,
+                        name: competency.name,
+                        description: competency.description,
+                        status: status,
+                        achievedAt: progress?.achieved_at,
+                        feedback: progress?.feedback
+                    });
+                }
+
+                classProgress.assignments.push(assignmentProgress);
+            }
+
+            progressSummary.classesSummary.push(classProgress);
+        }
+
+        res.json(progressSummary);
     } catch (error) {
         next(error);
     }
 });
 
-// Add student to class
-app.post('/api/classes/:classId/students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+// Get detailed progress for a specific class
+app.get('/api/classes/:classId/competencies/progress', authMiddleware, roleMiddleware(['STUDENT']), async (req, res, next) => {
     try {
         const { classId } = req.params;
-        const { studentId } = req.body;
-        const classIdInt = parseInt(classId);
-        const studentIdInt = parseInt(studentId);
-        
-        if (isNaN(classIdInt) || isNaN(studentIdInt)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid class ID or student ID'
-            });
-        }
-        
-        // Verify the class exists and belongs to the teacher
-        const classExists = await prisma.class.findFirst({
-            where: { 
-                id: classIdInt, 
-                teacherId: req.user.userId,
-                deleted_at: null 
-            }
-        });
-        
-        if (!classExists) {
-            return res.status(404).json({
-                success: false,
-                message: 'Class not found or you do not have permission to manage it'
-            });
-        }
-        
-        // Verify the student exists and is a student
-        const student = await prisma.user.findFirst({
-            where: { 
-                id: studentIdInt, 
-                role: 'STUDENT',
-                deleted_at: null 
-            }
-        });
-        
-        if (!student) {
-            return res.status(404).json({
-                success: false,
-                message: 'Student not found'
-            });
-        }
-        
-        // Check if student is already enrolled
-        const enrollment = await prisma.class.findFirst({
+        const studentId = req.user.id;
+
+        // Verify student is enrolled in this class
+        const classEnrollment = await prisma.class.findFirst({
             where: {
-                id: classIdInt,
+                id: parseInt(classId),
                 students: {
-                    some: { id: studentIdInt }
+                    some: {
+                        id: studentId
+                    }
                 }
             }
         });
-        
-        if (enrollment) {
-            return res.status(409).json({
+
+        if (!classEnrollment) {
+            return res.status(403).json({
                 success: false,
-                message: 'Student is already enrolled in this class'
+                message: 'You are not enrolled in this class'
             });
         }
-        
-        // Add student to class
-        await prisma.class.update({
-            where: { id: classIdInt },
-            data: {
-                students: {
-                    connect: { id: studentIdInt }
+
+        const classData = await prisma.class.findUnique({
+            where: { id: parseInt(classId) },
+            include: {
+                assignments: {
+                    include: {
+                        competencies: {
+                            include: {
+                                progress: {
+                                    where: {
+                                        studentId: studentId
+                                    }
+                                }
+                            }
+                        },
+                        submissions: {
+                            where: {
+                                studentId: studentId
+                            }
+                        }
+                    }
                 }
             }
         });
-        
-        res.json({ 
-            success: true, 
-            message: `${student.name} has been added to the class successfully` 
+
+        // Calculate progress statistics
+        let totalCompetencies = 0;
+        let achievedCompetencies = 0;
+        let masteredCompetencies = 0;
+
+        classData.assignments.forEach(assignment => {
+            assignment.competencies.forEach(competency => {
+                totalCompetencies++;
+                const progress = competency.progress[0];
+                if (progress?.status === 'ACHIEVED') achievedCompetencies++;
+                if (progress?.status === 'MASTERED') masteredCompetencies++;
+            });
         });
+
+        const progressPercentage = totalCompetencies > 0 ? 
+            Math.round(((achievedCompetencies + masteredCompetencies) / totalCompetencies) * 100) : 0;
+
+        const response = {
+            classId: classData.id,
+            className: classData.name,
+            description: classData.description,
+            totalCompetencies,
+            achievedCompetencies,
+            masteredCompetencies,
+            progressPercentage,
+            assignments: classData.assignments.map(assignment => ({
+                id: assignment.id,
+                title: assignment.title,
+                description: assignment.description,
+                deadline: assignment.deadline,
+                submission: assignment.submissions[0] || null,
+                competencies: assignment.competencies.map(competency => {
+                    const progress = competency.progress[0];
+                    return {
+                        id: competency.id,
+                        name: competency.name,
+                        description: competency.description,
+                        status: progress?.status || 'NOT_STARTED',
+                        achievedAt: progress?.achieved_at,
+                        feedback: progress?.feedback,
+                        createdAt: competency.created_at
+                    };
+                })
+            }))
+        };
+
+        res.json(response);
     } catch (error) {
         next(error);
     }
 });
 
-// Remove student from class
-app.delete('/api/classes/:classId/students/:studentId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+// Update competency progress (for teachers)
+app.put('/api/competencies/:competencyId/progress/:studentId', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
     try {
-        const { classId, studentId } = req.params;
-        const classIdInt = parseInt(classId);
-        const studentIdInt = parseInt(studentId);
-        
-        if (isNaN(classIdInt) || isNaN(studentIdInt)) {
+        const { competencyId, studentId } = req.params;
+        const { status, feedback } = req.body;
+
+        const validStatuses = ['NOT_STARTED', 'IN_PROGRESS', 'ACHIEVED', 'MASTERED'];
+        if (!validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid class ID or student ID'
+                message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
             });
         }
-        
-        // Verify the class exists and belongs to the teacher
-        const classExists = await prisma.class.findFirst({
-            where: { 
-                id: classIdInt, 
-                teacherId: req.user.userId,
-                deleted_at: null 
+
+        // Verify the teacher has access to this competency
+        const competency = await prisma.competency.findUnique({
+            where: { id: parseInt(competencyId) },
+            include: {
+                assignment: {
+                    include: {
+                        class: true
+                    }
+                }
             }
         });
-        
-        if (!classExists) {
-            return res.status(404).json({
+
+        if (!competency || competency.assignment.class.teacherId !== req.user.id) {
+            return res.status(403).json({
                 success: false,
-                message: 'Class not found or you do not have permission to manage it'
+                message: 'You do not have access to this competency'
             });
         }
-        
-        // Verify the student is enrolled in this class
-        const enrollment = await prisma.class.findFirst({
+
+        // Upsert competency progress
+        const progressData = {
+            status,
+            feedback: feedback || null,
+            achieved_at: (status === 'ACHIEVED' || status === 'MASTERED') ? new Date() : null,
+            updated_at: new Date()
+        };
+
+        const progress = await prisma.competencyProgress.upsert({
             where: {
-                id: classIdInt,
-                students: {
-                    some: { id: studentIdInt }
+                competencyId_studentId: {
+                    competencyId: parseInt(competencyId),
+                    studentId: parseInt(studentId)
                 }
             },
-            include: {
-                students: {
-                    where: { id: studentIdInt },
-                    select: { name: true }
-                }
+            update: progressData,
+            create: {
+                competencyId: parseInt(competencyId),
+                studentId: parseInt(studentId),
+                ...progressData
             }
         });
-        
-        if (!enrollment || enrollment.students.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Student is not enrolled in this class'
-            });
-        }
-        
-        // Remove student from class
-        await prisma.class.update({
-            where: { id: classIdInt },
-            data: {
-                students: {
-                    disconnect: { id: studentIdInt }
-                }
-            }
-        });
-        
-        res.json({ 
-            success: true, 
-            message: `${enrollment.students[0].name} has been removed from the class successfully` 
+
+        res.json({
+            success: true,
+            message: 'Competency progress updated successfully',
+            progress
         });
     } catch (error) {
         next(error);
     }
 });
 
-// Get students enrolled in a specific class
-app.get('/api/classes/:classId/students', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
-    try {
-        const { classId } = req.params;
-        const classIdInt = parseInt(classId);
-        
-        if (isNaN(classIdInt)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid class ID'
-            });
-        }
-        
-        // Verify the class exists and belongs to the teacher
-        const classWithStudents = await prisma.class.findFirst({
-            where: { 
-                id: classIdInt, 
-                teacherId: req.user.userId,
-                deleted_at: null 
-            },
-            include: {
-                students: {
-                    where: { deleted_at: null },
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        photo: true,
-                        created_at: true
-                    },
-                    orderBy: { name: 'asc' }
-                }
-            }
-        });
-        
-        if (!classWithStudents) {
-            return res.status(404).json({
-                success: false,
-                message: 'Class not found or you do not have permission to view it'
-            });
-        }
-        
-        res.json({ success: true, data: classWithStudents.students });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// --- SUBMISSION FEEDBACK ROUTE ---
-app.post('/api/submissions/:id/feedback', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(submissionFeedbackSchema), async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { feedback } = req.body;
-        const submissionId = parseInt(id);
-        if (isNaN(submissionId)) {
-            return res.status(400).json({ success: false, message: 'Invalid submission ID' });
-        }
-        // Find submission and ensure teacher owns the assignment
-        const submission = await prisma.submission.findUnique({
-            where: { id: submissionId },
-            include: { assignment: { include: { class: true } } }
-        });
-        if (!submission || !submission.assignment || submission.assignment.class.teacherId !== req.user.userId) {
-            return res.status(404).json({ success: false, message: 'Submission not found or you do not have permission' });
-        }
-        const updatedSubmission = await prisma.submission.update({
-            where: { id: submissionId },
-            data: {
-                feedback,
-                feedback_at: new Date()
-            }
-        });
-        res.json({ success: true, data: updatedSubmission });
-    } catch (error) {
-        next(error);
-    }
-});
-
-// --- TEACHER SUBMISSION REVIEW ROUTES ---
-// Get all submissions for an assignment (teacher only)
-app.get('/api/assignments/:assignmentId/submissions', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
+// Get competency progress for a specific assignment (for teachers reviewing submissions)
+app.get('/api/assignments/:assignmentId/competencies/progress', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
     try {
         const { assignmentId } = req.params;
+
+        // Verify teacher owns this assignment
         const assignment = await prisma.assignment.findFirst({
             where: {
-                id: Number(assignmentId),
-                deleted_at: null,
-                class: { teacherId: req.user.userId, deleted_at: null }
+                id: parseInt(assignmentId),
+                class: {
+                    teacherId: req.user.id
+                }
             },
             include: {
-                submissions: {
+                class: {
                     include: {
-                        student: { select: { id: true, name: true, email: true, photo: true } }
-                    },
-                    orderBy: { submitted_at: 'desc' }
+                        students: true
+                    }
+                },
+                competencies: {
+                    include: {
+                        progress: {
+                            include: {
+                                student: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });
-        if (!assignment) {
-            return res.status(404).json({ success: false, message: 'Assignment not found or you do not have permission' });
-        }
-        res.json({ success: true, data: assignment.submissions });
-    } catch (error) {
-        next(error);
-    }
-});
 
-// Update submission status (accept and set competency level)
-app.put('/api/submissions/:id/status', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body; // status: 'ACHIEVED' | 'MASTERED' | 'IN_PROGRESS'
-        if (!['ACHIEVED', 'MASTERED', 'IN_PROGRESS'].includes(status)) {
-            return res.status(400).json({ success: false, message: 'Invalid status' });
+        if (!assignment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Assignment not found or you do not have access'
+            });
         }
-        // Find submission and ensure teacher owns the assignment
-        const submission = await prisma.submission.findUnique({
-            where: { id: Number(id) },
-            include: { assignment: { include: { class: true } } }
-        });
-        if (!submission || !submission.assignment || submission.assignment.class.teacherId !== req.user.userId) {
-            return res.status(404).json({ success: false, message: 'Submission not found or you do not have permission' });
-        }
-        const updated = await prisma.submission.update({
-            where: { id: Number(id) },
-            data: { status, reviewed_at: new Date() }
-        });
-        res.json({ success: true, data: updated });
+
+        const response = {
+            assignmentId: assignment.id,
+            assignmentTitle: assignment.title,
+            className: assignment.class.name,
+            students: assignment.class.students.map(student => {
+                const studentProgress = {};
+                assignment.competencies.forEach(competency => {
+                    const progress = competency.progress.find(p => p.studentId === student.id);
+                    studentProgress[competency.id] = {
+                        status: progress?.status || 'NOT_STARTED',
+                        achievedAt: progress?.achieved_at,
+                        feedback: progress?.feedback
+                    };
+                });
+
+                return {
+                    studentId: student.id,
+                    studentName: student.name,
+                    studentEmail: student.email,
+                    competencyProgress: studentProgress
+                };
+            }),
+            competencies: assignment.competencies.map(competency => ({
+                id: competency.id,
+                name: competency.name,
+                description: competency.description
+            }))
+        };
+
+        res.json(response);
     } catch (error) {
         next(error);
     }
