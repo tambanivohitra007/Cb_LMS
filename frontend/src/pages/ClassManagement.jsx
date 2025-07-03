@@ -9,6 +9,9 @@ function ClassManagement() {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [newClass, setNewClass] = useState({ name: '', description: '' });
     const [creating, setCreating] = useState(false);
+    const [editingClass, setEditingClass] = useState(null);
+    const [editClass, setEditClass] = useState({ name: '', description: '' });
+    const [updating, setUpdating] = useState(false);
 
     const fetchClasses = async () => {
         try {
@@ -36,6 +39,41 @@ function ClassManagement() {
                 console.error('Failed to delete class', error);
                 alert('Failed to delete class. Please try again.');
             }
+        }
+    };
+
+    const handleEdit = (cls) => {
+        setEditingClass(cls.id);
+        setEditClass({ name: cls.name, description: cls.description || '' });
+        setShowCreateForm(false); // Close create form if open
+    };
+
+    const handleCancelEdit = () => {
+        setEditingClass(null);
+        setEditClass({ name: '', description: '' });
+    };
+
+    const handleUpdateClass = async (e) => {
+        e.preventDefault();
+        if (!editClass.name.trim()) {
+            alert('Class name is required');
+            return;
+        }
+
+        try {
+            setUpdating(true);
+            await apiClient.put(`/classes/${editingClass}`, {
+                name: editClass.name.trim(),
+                description: editClass.description.trim()
+            });
+            setEditingClass(null);
+            setEditClass({ name: '', description: '' });
+            fetchClasses(); // Refresh list
+        } catch (error) {
+            console.error('Failed to update class', error);
+            alert('Failed to update class. Please try again.');
+        } finally {
+            setUpdating(false);
         }
     };
 
@@ -85,7 +123,10 @@ function ClassManagement() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">Class Management</h1>
                 <button 
-                    onClick={() => setShowCreateForm(!showCreateForm)}
+                    onClick={() => {
+                        setShowCreateForm(!showCreateForm);
+                        setEditingClass(null); // Close edit form if open
+                    }}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
                 >
                     {showCreateForm ? 'Cancel' : 'Create New Class'}
@@ -150,44 +191,102 @@ function ClassManagement() {
                     <ul className="divide-y divide-gray-200">
                         {classes.map(cls => (
                             <li key={cls.id} className="py-4">
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-indigo-800">{cls.name}</h3>
-                                        <p className="text-gray-600">{cls.description || 'No description'}</p>
-                                        <p className="text-sm text-gray-500 mt-1">
-                                            Students: {cls.students?.length || 0} | 
-                                            Assignments: {cls.assignments?.length || 0}
-                                        </p>
+                                {editingClass === cls.id ? (
+                                    // Edit Form
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <h3 className="text-lg font-semibold mb-4">Edit Class</h3>
+                                        <form onSubmit={handleUpdateClass}>
+                                            <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                    Class Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={editClass.name}
+                                                    onChange={(e) => setEditClass({ ...editClass, name: e.target.value })}
+                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    placeholder="Enter class name"
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                    Description
+                                                </label>
+                                                <textarea
+                                                    value={editClass.description}
+                                                    onChange={(e) => setEditClass({ ...editClass, description: e.target.value })}
+                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    placeholder="Enter class description"
+                                                    rows="3"
+                                                />
+                                            </div>
+                                            <div className="flex space-x-4">
+                                                <button
+                                                    type="submit"
+                                                    disabled={updating}
+                                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                                >
+                                                    {updating ? 'Updating...' : 'Update Class'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCancelEdit}
+                                                    className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
                                     </div>
+                                ) : (
+                                    // View Mode
                                     <div>
-                                        <button className="text-yellow-500 hover:text-yellow-700 mr-4">Edit</button>
-                                        <button 
-                                            onClick={() => handleDelete(cls.id)} 
-                                            className="text-red-500 hover:text-red-700"
-                                        >
-                                            Trash
-                                        </button>
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-indigo-800">{cls.name}</h3>
+                                                <p className="text-gray-600">{cls.description || 'No description'}</p>
+                                                <p className="text-sm text-gray-500 mt-1">
+                                                    Students: {cls.students?.length || 0} | 
+                                                    Assignments: {cls.assignments?.length || 0}
+                                                </p>
+                                            </div>
+                                            <div className="flex space-x-2">
+                                                <button 
+                                                    onClick={() => handleEdit(cls)}
+                                                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(cls.id)} 
+                                                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                                                >
+                                                    Trash
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 pl-4 border-l-2 border-indigo-100">
+                                            <h4 className="font-semibold mb-2">Assignments</h4>
+                                            {cls.assignments && cls.assignments.length > 0 ? (
+                                                <ul className="list-disc pl-5 space-y-1">
+                                                    {cls.assignments.map(a => (
+                                                        <li key={a.id} className="text-sm">
+                                                            {a.title}
+                                                            {a._count?.submissions && (
+                                                                <span className="text-gray-500 ml-2">
+                                                                    ({a._count.submissions} submissions)
+                                                                </span>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-sm text-gray-500">No assignments yet.</p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="mt-4 pl-4 border-l-2 border-indigo-100">
-                                    <h4 className="font-semibold mb-2">Assignments</h4>
-                                    {cls.assignments && cls.assignments.length > 0 ? (
-                                        <ul className="list-disc pl-5 space-y-1">
-                                            {cls.assignments.map(a => (
-                                                <li key={a.id} className="text-sm">
-                                                    {a.title}
-                                                    {a._count?.submissions && (
-                                                        <span className="text-gray-500 ml-2">
-                                                            ({a._count.submissions} submissions)
-                                                        </span>
-                                                    )}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-sm text-gray-500">No assignments yet.</p>
-                                    )}
-                                </div>
+                                )}
                             </li>
                         ))}
                     </ul>

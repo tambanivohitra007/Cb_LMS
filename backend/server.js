@@ -360,6 +360,55 @@ app.post('/api/classes', authMiddleware, roleMiddleware(['TEACHER']), validateRe
     }
 });
 
+// Update a class
+app.put('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), validateRequest(classSchema), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { name, description } = req.body;
+        const classId = parseInt(id);
+        
+        if (isNaN(classId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid class ID'
+            });
+        }
+        
+        // Verify the class exists and belongs to the teacher
+        const existingClass = await prisma.class.findFirst({
+            where: { 
+                id: classId, 
+                teacherId: req.user.userId,
+                deleted_at: null 
+            }
+        });
+        
+        if (!existingClass) {
+            return res.status(404).json({
+                success: false,
+                message: 'Class not found or you do not have permission to update it'
+            });
+        }
+        
+        const updatedClass = await prisma.class.update({
+            where: { id: classId },
+            data: { name, description },
+            include: {
+                teacher: {
+                    select: { id: true, name: true, email: true }
+                },
+                _count: {
+                    select: { students: true, assignments: true }
+                }
+            }
+        });
+        
+        res.json({ success: true, data: updatedClass });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Soft delete a class
 app.delete('/api/classes/:id', authMiddleware, roleMiddleware(['TEACHER']), async (req, res, next) => {
     try {

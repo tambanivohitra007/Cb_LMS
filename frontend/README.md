@@ -125,6 +125,8 @@ After the backend is seeded, you can use these accounts:
 - `GET /api/users` - Fetch users (teacher only)
 - `GET /api/competencies/status` - Fetch competency status (student only)
 - `POST /api/classes` - Create new class (teacher only)
+- `PUT /api/classes/:id` - Update class (teacher only)
+- `DELETE /api/classes/:id` - Delete class (teacher only)
 - `POST /api/submissions` - Submit assignment work (student only)
 - `GET /api/trash` - Fetch deleted items (teacher only)
 - `POST /api/trash/restore/class/:id` - Restore deleted class (teacher only)

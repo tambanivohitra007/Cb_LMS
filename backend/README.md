@@ -68,6 +68,7 @@ A Node.js/Express backend for a Competency-Based Learning Management System.
 ### Classes
 - `GET /api/classes` - Get classes (filtered by role)
 - `POST /api/classes` - Create new class (Teacher only)
+- `PUT /api/classes/:id` - Update class (Teacher only)
 - `DELETE /api/classes/:id` - Soft delete class (Teacher only)
 
 ### Assignments
