@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
+import { 
+    Users, 
+    Plus, 
+    Save, 
+    X, 
+    Edit, 
+    Trash2, 
+    User, 
+    GraduationCap, 
+    Shield,
+    UserCheck
+} from 'lucide-react';
 
 function UserManagement() {
     const { apiClient } = useAuth();
@@ -132,10 +144,10 @@ function UserManagement() {
 
     const getRoleBadgeColor = (role) => {
         switch (role) {
-            case 'ADMIN': return 'bg-red-100 text-red-800';
-            case 'TEACHER': return 'bg-blue-100 text-blue-800';
-            case 'STUDENT': return 'bg-green-100 text-green-800';
-            default: return 'bg-gray-100 text-gray-800';
+            case 'ADMIN': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300';
+            case 'TEACHER': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300';
+            case 'STUDENT': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300';
+            default: return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
         }
     };
 
@@ -143,14 +155,14 @@ function UserManagement() {
         <div className="p-8 flex justify-center items-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading users...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading users...</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div className="p-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded">
                 {error}
             </div>
         </div>
@@ -159,32 +171,42 @@ function UserManagement() {
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">User Management</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">User Management</h1>
                 <button 
                     onClick={() => {
                         setShowCreateForm(!showCreateForm);
                         setEditingUser(null);
                     }}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                    className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
                 >
-                    {showCreateForm ? 'Cancel' : 'Create New User'}
+                    {showCreateForm ? (
+                        <>
+                            <X className="h-4 w-4" />
+                            Cancel
+                        </>
+                    ) : (
+                        <>
+                            <Plus className="h-4 w-4" />
+                            Create New User
+                        </>
+                    )}
                 </button>
             </div>
 
             {showCreateForm && (
-                <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <h2 className="text-xl font-semibold mb-4">Create New User</h2>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border dark:border-gray-700">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Create New User</h2>
                     <form onSubmit={handleCreateUser}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                     Full Name
                                 </label>
                                 <input
                                     type="text"
                                     value={newUser.name}
                                     onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                    className="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500 dark:focus:border-indigo-400"
                                     placeholder="Enter full name"
                                     required
                                 />

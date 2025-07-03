@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useParams, useNavigate } from 'react-router-dom';
+import { 
+    UserPlus, 
+    Users, 
+    ArrowLeft, 
+    Plus, 
+    X, 
+    Trash2,
+    GraduationCap
+} from 'lucide-react';
 
 function StudentManagement() {
     const { apiClient } = useAuth();
@@ -83,14 +92,14 @@ function StudentManagement() {
         <div className="p-8 flex justify-center items-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading student data...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading student data...</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div className="p-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded">
                 {error}
             </div>
         </div>
@@ -101,39 +110,50 @@ function StudentManagement() {
             <div className="mb-6">
                 <button 
                     onClick={() => navigate('/classes')}
-                    className="text-indigo-600 hover:text-indigo-800 mb-4"
+                    className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 mb-4 flex items-center gap-1 transition-colors"
                 >
-                    ← Back to Classes
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Classes
                 </button>
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-3xl font-bold">Student Management</h1>
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Student Management</h1>
                         {classInfo && (
-                            <p className="text-gray-600 mt-2">Class: {classInfo.name}</p>
+                            <p className="text-gray-600 dark:text-gray-400 mt-2">Class: {classInfo.name}</p>
                         )}
                     </div>
                     <button 
                         onClick={() => setShowAddForm(!showAddForm)}
                         disabled={availableStudents.length === 0}
-                        className={`px-4 py-2 rounded-md font-medium ${
+                        className={`px-4 py-2 rounded-md font-medium flex items-center gap-2 transition-colors ${
                             availableStudents.length === 0 
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' 
+                                : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white'
                         }`}
                     >
-                        {showAddForm ? 'Cancel' : 'Add Student'}
+                        {showAddForm ? (
+                            <>
+                                <X className="h-4 w-4" />
+                                Cancel
+                            </>
+                        ) : (
+                            <>
+                                <UserPlus className="h-4 w-4" />
+                                Add Student
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
 
             {/* Add Student Form */}
             {showAddForm && (
-                <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <h2 className="text-xl font-semibold mb-4">Add Student to Class</h2>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border dark:border-gray-700">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Add Student to Class</h2>
                     <form onSubmit={handleAddStudent}>
                         <div className="flex gap-4 items-end">
                             <div className="flex-1">
-                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                     Select Student
                                 </label>
                                 <select

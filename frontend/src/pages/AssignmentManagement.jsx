@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import RichTextEditor from '../components/RichTextEditor';
+import { 
+    Plus, 
+    Save, 
+    X, 
+    Edit, 
+    Trash2, 
+    Eye, 
+    Calendar, 
+    FileText, 
+    ArrowLeft,
+    CheckCircle
+} from 'lucide-react';
 
 function AssignmentManagement() {
     const { apiClient } = useAuth();
@@ -200,20 +212,21 @@ function AssignmentManagement() {
         <div className="p-8 flex justify-center items-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading assignments...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading assignments...</p>
             </div>
         </div>
     );
 
     if (error) return (
         <div className="p-8">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4">
                 {error}
             </div>
             <button 
                 onClick={() => navigate('/classes')}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
             >
+                <ArrowLeft className="h-4 w-4" />
                 Back to Classes
             </button>
         </div>
@@ -225,15 +238,16 @@ function AssignmentManagement() {
                 <div>
                     <button 
                         onClick={() => navigate('/classes')}
-                        className="text-indigo-600 hover:text-indigo-800 mb-2"
+                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 mb-2 flex items-center gap-1 transition-colors"
                     >
-                        ← Back to Classes
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to Classes
                     </button>
-                    <h1 className="text-3xl font-bold">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                         Assignments for {classInfo?.name || 'Class'}
                     </h1>
                     {classInfo?.description && (
-                        <p className="text-gray-600 mt-2">{classInfo.description}</p>
+                        <p className="text-gray-600 dark:text-gray-400 mt-2">{classInfo.description}</p>
                     )}
                 </div>
                 <button 
@@ -241,32 +255,42 @@ function AssignmentManagement() {
                         setShowCreateForm(!showCreateForm);
                         setEditingAssignment(null);
                     }}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                    className="bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
                 >
-                    {showCreateForm ? 'Cancel' : 'Create New Assignment'}
+                    {showCreateForm ? (
+                        <>
+                            <X className="h-4 w-4" />
+                            Cancel
+                        </>
+                    ) : (
+                        <>
+                            <Plus className="h-4 w-4" />
+                            Create New Assignment
+                        </>
+                    )}
                 </button>
             </div>
 
             {showCreateForm && (
-                <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <h2 className="text-xl font-semibold mb-4">Create New Assignment</h2>
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 border dark:border-gray-700">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Create New Assignment</h2>
                     <form onSubmit={handleCreateAssignment}>
                         <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                 Assignment Title
                             </label>
                             <input
                                 type="text"
                                 value={newAssignment.title}
                                 onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                className="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500 dark:focus:border-indigo-400"
                                 placeholder="Enter assignment title"
                                 required
                             />
                         </div>
                         
                         <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                 Description
                             </label>
                             <RichTextEditor
@@ -278,7 +302,7 @@ function AssignmentManagement() {
                         </div>
 
                         <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                 Competencies
                             </label>
                             {newAssignment.competencyNames.map((competency, index) => (
@@ -287,7 +311,7 @@ function AssignmentManagement() {
                                         type="text"
                                         value={competency}
                                         onChange={(e) => updateCompetencyName(index, e.target.value, false)}
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mr-2"
+                                        className="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500 dark:focus:border-indigo-400 mr-2"
                                         placeholder="Enter competency name"
                                         required
                                     />
@@ -295,8 +319,9 @@ function AssignmentManagement() {
                                         <button
                                             type="button"
                                             onClick={() => removeCompetencyField(index, false)}
-                                            className="bg-red-500 text-white px-2 py-2 rounded text-sm hover:bg-red-600"
+                                            className="bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white px-2 py-2 rounded text-sm flex items-center gap-1 transition-colors"
                                         >
+                                            <X className="h-3 w-3" />
                                             Remove
                                         </button>
                                     )}
@@ -305,21 +330,22 @@ function AssignmentManagement() {
                             <button
                                 type="button"
                                 onClick={() => addCompetencyField(false)}
-                                className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600"
+                                className="bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors"
                             >
+                                <Plus className="h-3 w-3" />
                                 Add Competency
                             </button>
                         </div>
 
                         <div className="mb-4">
-                            <label className="block text-gray-700 text-sm font-bold mb-2">
+                            <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                 Deadline
                             </label>
                             <input
                                 type="date"
                                 value={newAssignment.deadline}
                                 onChange={(e) => setNewAssignment({ ...newAssignment, deadline: e.target.value })}
-                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                className="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500 dark:focus:border-indigo-400"
                             />
                         </div>
 
@@ -327,15 +353,17 @@ function AssignmentManagement() {
                             <button
                                 type="submit"
                                 disabled={creating}
-                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white px-4 py-2 rounded-md disabled:opacity-50 flex items-center gap-2 transition-colors"
                             >
+                                <Save className="h-4 w-4" />
                                 {creating ? 'Creating...' : 'Create Assignment'}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShowCreateForm(false)}
-                                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                                className="bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
                             >
+                                <X className="h-4 w-4" />
                                 Cancel
                             </button>
                         </div>
@@ -343,29 +371,29 @@ function AssignmentManagement() {
                 </div>
             )}
 
-            <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border dark:border-gray-700">
                 {assignments.length === 0 ? (
                     <div className="text-center py-8">
-                        <p className="text-gray-500">No assignments found. Create your first assignment to get started!</p>
+                        <p className="text-gray-500 dark:text-gray-400">No assignments found. Create your first assignment to get started!</p>
                     </div>
                 ) : (
-                    <ul className="divide-y divide-gray-200">
+                    <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                         {assignments.map(assignment => (
                             <li key={assignment.id} className="py-4">
                                 {editingAssignment === assignment.id ? (
                                     // Edit Form
-                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                        <h3 className="text-lg font-semibold mb-4">Edit Assignment</h3>
+                                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border dark:border-gray-600">
+                                        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Edit Assignment</h3>
                                         <form onSubmit={handleUpdateAssignment}>
                                             <div className="mb-4">
-                                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                                     Assignment Title
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={editAssignment.title}
                                                     onChange={(e) => setEditAssignment({ ...editAssignment, title: e.target.value })}
-                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    className="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500 dark:focus:border-indigo-400"
                                                     required
                                                 />
                                             </div>
@@ -416,14 +444,14 @@ function AssignmentManagement() {
                                             </div>
 
                                             <div className="mb-4">
-                                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
                                                     Deadline
                                                 </label>
                                                 <input
                                                     type="date"
                                                     value={editAssignment.deadline}
                                                     onChange={(e) => setEditAssignment({ ...editAssignment, deadline: e.target.value })}
-                                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    className="shadow appearance-none border dark:border-gray-600 rounded w-full py-2 px-3 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 leading-tight focus:outline-none focus:shadow-outline focus:border-indigo-500 dark:focus:border-indigo-400"
                                                 />
                                             </div>
 
@@ -431,15 +459,17 @@ function AssignmentManagement() {
                                                 <button
                                                     type="submit"
                                                     disabled={updating}
-                                                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                                    className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded-md disabled:opacity-50 flex items-center gap-2 transition-colors"
                                                 >
+                                                    <Save className="h-4 w-4" />
                                                     {updating ? 'Updating...' : 'Update Assignment'}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={handleCancelEdit}
-                                                    className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                                                    className="bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors"
                                                 >
+                                                    <X className="h-4 w-4" />
                                                     Cancel
                                                 </button>
                                             </div>
@@ -450,24 +480,24 @@ function AssignmentManagement() {
                                     <div>
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1">
-                                                <h3 className="text-xl font-bold text-indigo-800">{assignment.title}</h3>
+                                                <h3 className="text-xl font-bold text-indigo-800 dark:text-indigo-300">{assignment.title}</h3>
                                                 <div 
-                                                    className="text-gray-600 mt-1 prose prose-sm max-w-none"
+                                                    className="text-gray-600 dark:text-gray-400 mt-1 prose prose-sm max-w-none dark:prose-invert"
                                                     dangerouslySetInnerHTML={{ 
-                                                        __html: assignment.description || '<p class="text-gray-500 italic">No description</p>' 
+                                                        __html: assignment.description || '<p class="text-gray-500 dark:text-gray-400 italic">No description</p>' 
                                                     }}
                                                 />
-                                                <p className="text-sm text-gray-500 mt-2">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                                                     Submissions: {assignment._count?.submissions || 0}
                                                 </p>
                                                 
                                                 <div className="mt-3">
-                                                    <h4 className="font-semibold text-sm text-gray-700 mb-1">Competencies:</h4>
+                                                    <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-1">Competencies:</h4>
                                                     <div className="flex flex-wrap gap-2">
                                                         {assignment.competencies.map(competency => (
                                                             <span 
                                                                 key={competency.id} 
-                                                                className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full"
+                                                                className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300 text-xs px-2 py-1 rounded-full"
                                                             >
                                                                 {competency.name}
                                                             </span>
@@ -476,8 +506,9 @@ function AssignmentManagement() {
                                                 </div>
 
                                                 <div className="mt-3">
-                                                    <h4 className="font-semibold text-sm text-gray-700 mb-1">Deadline:</h4>
-                                                    <p className="text-sm text-gray-500">
+                                                    <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-1">Deadline:</h4>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
                                                         {assignment.deadline ? new Date(assignment.deadline).toLocaleDateString() : 'No deadline set'}
                                                     </p>
                                                 </div>
@@ -486,21 +517,24 @@ function AssignmentManagement() {
                                             <div className="ml-4 flex flex-col gap-2">
                                                 <Link
                                                     to={`/teacher/assignments/${assignment.id}/submissions`}
-                                                    className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm text-center"
+                                                    className="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm text-center flex items-center gap-1 transition-colors"
                                                 >
+                                                    <Eye className="h-3 w-3" />
                                                     Review Submissions
                                                 </Link>
                                                 <div className="flex space-x-2">
                                                     <button 
                                                         onClick={() => handleEdit(assignment)}
-                                                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+                                                        className="bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors"
                                                     >
+                                                        <Edit className="h-3 w-3" />
                                                         Edit
                                                     </button>
                                                     <button 
                                                         onClick={() => handleDelete(assignment.id)} 
-                                                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                                                        className="bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white px-3 py-1 rounded text-sm flex items-center gap-1 transition-colors"
                                                     >
+                                                        <Trash2 className="h-3 w-3" />
                                                         Delete
                                                     </button>
                                                 </div>
